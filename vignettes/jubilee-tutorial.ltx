@@ -1,0 +1,1200 @@
+%\VignetteIndexEntry{Jubilee: Forecast Long-Term Growth of S\&P 500 Index}
+%\VignetteEngine{R.rsp::tex}
+%\VignetteKeyword{R}
+%\VignetteKeyword{package}
+%\VignetteKeyword{vignette}
+%\VignetteKeyword{LaTeX}
+
+\batchmode
+\makeatletter
+\def\input@path{{\string"./\string"}}
+\makeatother
+\documentclass[a4paper]{report}\usepackage[]{graphicx}\usepackage[]{color}
+%% maxwidth is the original width if it is less than linewidth
+%% otherwise use linewidth (to make sure the graphics do not exceed the margin)
+\makeatletter
+\def\maxwidth{ %
+  \ifdim\Gin@nat@width>\linewidth
+    \linewidth
+  \else
+    \Gin@nat@width
+  \fi
+}
+\makeatother
+
+
+
+
+\usepackage[T1]{fontenc}
+\usepackage[latin9]{inputenc}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{nameref}
+\usepackage{grfext}
+
+\makeatletter
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Textclass specific LaTeX commands.
+\usepackage{RJournal}
+\usepackage{booktabs}
+
+\fancyhf{}
+\fancyhead[LO,RE]{\textsc{Contributed Article}}
+\fancyhead[RO,LE]{\thepage}
+\fancyfoot[L]{The R Journal Vol. X/Y, Month, Year}
+\fancyfoot[R]{ISSN 2073-4859}
+
+\AtBeginDocument{%
+  \begin{article}
+  \PrependGraphicsExtensions*{
+    .pdf,.PDF
+  }%
+  \PrintGraphicsExtensions
+}
+
+\AtEndDocument{%
+  \end{article}
+}
+
+\makeatother
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\begin{document}
+
+
+\title{Jubilee: Forecast Long-Term Growth of S\&P 500 Index }
+
+\author{by Stephen H.-T. Lihn (\email{stevelihn@gmail.com})}
+\maketitle
+
+\abstract{This tutorial shows how to use the \texttt{jubilee} package in R
+to forecast the 10-year and 20-year growth trajectory of S\&P 500
+Index. R programs are provided to run the regressions, make predictions,
+and plot the charts. Additionally, in order to capture the short-horizon
+volatility (less than 10 years), we derive a new quantity that shows
+the deviation between the realized index level and the forecast. Interestingly,
+this quantity is mean-reverting in the same frequencies as the commonly-known
+business cycles. We attempt to locate potential leading indicator(s)
+for the next bear market and recession. A few factors are explored,
+among which yield spread inversion is considered most important. }
+
+\section{\label{sec:Introduction}Introduction}
+
+In \citet{lihn2018}, we enhanced the CAPE model (\citet{shiller1988};
+\citet{shiller1998}) and provided a regression framework called the
+``Jubilee-Tectonic Model'' to forecast the long-term growth of S\&P
+500 (SPX) index. The $R^{2}$ of the regression is above 80\%, indicating
+very high consistency with historical data, and therefore, explanatory
+power. The data and utilities are packaged into the \texttt{jubilee}
+package in R. This tutorial provides an introduction how to use the
+package and generate the forecasts.
+
+The main objective of long-term forecast is to regress the 10-year
+and 20-year forward nominal log-returns of SPX: $r_{f10}^{nom}\left(t\right)$
+and $r_{f20}^{nom}\left(t\right)$, from which we can derive the predicted
+log-index $X_{pred}\left(t\right)$ from the realized total-return
+log-index $X\left(t\right)$. The 10-year forecast is popular in asset
+management, since the time horizon is reasonable for long-term asset
+allocators, such as pensions and endowments. However, as we found
+in \citet{lihn2018}, the 20-year period matches the natural frequency
+of the long-term mean reversion cycles. Thus the 20-year regression
+requires the least tectonic adjustments.
+
+The forecast horizon is called the ``look-forward period'', denoted
+as $\Delta T_{f}=$ 10 or 20. We construct the 5-factor forecast model
+as follows:
+
+\begin{equation}
+\begin{aligned}r_{f,\Delta T_{f}}^{nom}\left(t\right) & \sim\beta_{0}+\beta_{1}Y\left(t\right)+\beta_{2}R\left(t\right)+\beta_{3}\mathrm{CPI}_{10}\left(t\right)+\beta_{4}\mathrm{CPI}_{20}\left(t\right)+\beta_{5}\log\mathrm{CAPE}_{\Delta T_{f}}^{adj}\left(t\right)+\varepsilon;\end{aligned}
+\label{eq:forecast-reg}
+\end{equation}
+where $t\in\left[T_{start},T_{end}\right]$ defines the in-sample
+regression window. $\mathrm{CPI}_{10}\left(t\right)$ and $\mathrm{CPI}_{20}\left(t\right)$
+are the 10-year and 20-year log-returns of CPI (FRED symbol: CPIAUCSL).
+The channel return $R\left(t\right)$ and channel deviation $Y\left(t\right)$
+are two important quantities derived from the trend-following channel
+in Section 2.3 of \citet{lihn2018}. $Y\left(t\right)$ is the difference
+between $X\left(t\right)$ and the trend-following channel moving
+average $\alpha\left(t\right)$, that is, $Y\left(t\right)=X\left(t\right)-\alpha\left(t\right)$.
+It is mean-reverting with an approximate 40-year cycle (See Figure
+\ref{fig:channel-dev-Yt} below).
+
+The log-CAPE is tectonically adjusted by the fault lines $\left\{ \left(t_{i}^{adj},\Delta_{i}\log\mathrm{CAPE}_{\Delta T_{f}}\right),\forall i=1\cdots N\right\} $
+with the linear ``ramp-up'' period $\Delta t_{ramp}$ such that
+
+\begin{equation}
+\begin{aligned}\log\mathrm{CAPE}_{\Delta T_{f}}^{adj}\left(t\right) & =\log\mathrm{CAPE}_{\Delta T_{f}}\left(t\right)+\sum_{i=1\cdots N}\begin{cases}
+0, & t<t_{i}^{adj};\\
+\begin{aligned}\frac{t-t_{i}^{adj}}{\Delta t_{ramp}}\,\Delta_{i}\log\mathrm{CAPE}_{\Delta T_{f}}\end{aligned}
+ & t\in\left[t_{i}^{adj},t_{i}^{adj}+\Delta t_{ramp}\right];\\
+\Delta_{i}\log\mathrm{CAPE}_{\Delta T_{f}}, & t\geq t_{i}^{adj}+\Delta t_{ramp},
+\end{cases}\end{aligned}
+\label{eq:cape-adj-intro}
+\end{equation}
+where $\mathrm{CAPE}_{\Delta T_{f}}$ is the cyclically adjusted P/E
+ratio for $\Delta T_{f}$ years. Each tuple $\left(t_{i}^{adj},\Delta_{i}\log\mathrm{CAPE}_{\Delta T_{f}}\right)$
+describes a jump in log-CAPE at time $t_{i}^{adj}$, which is called
+a ``fault line'', as if the economy was going through an earth quake
+and a crack was left on the ground.
+
+When $\Delta t_{ramp}\rightarrow0$, the fault line adjustments converge
+to the step function approach described in Section 1.2 of \citet{lihn2018}.
+The purpose of introducing the $\Delta t_{ramp}$ parameter is to
+eliminate the discontinuity in the index prediction $X_{pred}\left(t\right)$
+such that the short-horizon mean-reversion quantity $Z_{\Delta T_{f}}\left(t\right)$
+in Eq. (\ref{eq:Zt}) makes more sense. We apply $\Delta t_{ramp}=5$
+to the 20-year forecast in this tutorial. It is set to zero for the
+10-year forecast so that it is consistent with \citet{lihn2018}.
+
+The objective of optimization is to minimize the AIC of the regression
+by a nonlinear optimization on the fault lines as well as the factor
+loadings $\left\{ \beta_{i}\right\} $. We view our tectonic 5-factor
+model as a meaningful extension from the one-factor CAPE model, $r_{f,\Delta T_{f}}^{real}\left(t\right)\sim\log\mathrm{CAPE}_{\Delta T_{f}}\left(t\right)+\varepsilon$.
+
+The nominal return forecast can be translated into index level prediction
+without the complication of inflation forecast. The regressed forward
+return $r_{f,\Delta T_{f}}^{nom}\left(t\right)$ is converted to the
+predicted log-index $X_{pred}\left(t\right)$ and future SPX level
+(dividend included) $p_{pred}\left(t\right)$ via (See Section 7 of
+\citet{lihn2018})
+
+\begin{equation}
+\begin{aligned}X_{pred}\left(t+\Delta T_{f}\right) & =X\left(t\right)+\left[r_{f,\Delta T_{f}}^{nom}\left(t\right)\right]_{pred}\Delta T_{f},\:\mathrm{where}\:t\in\left[T_{start},T_{end}\right];\\
+\mathrm{and}\:p_{pred}\left(t\right) & =p\left(T_{end}\right)\exp\left(X_{pred}\left(t\right)-X\left(T_{end}\right)\right).
+\end{aligned}
+\label{eq:forecast-Xt}
+\end{equation}
+
+The the total-return price $p\left(t\right)$ is rebased to the price
+level of the most recent month, using the relation between $p\left(T_{end}\right)$
+and $X\left(T_{end}\right)$, such that $p\left(t\right)=p\left(T_{end}\right)\exp\left(X\left(t\right)-X\left(T_{end}\right)\right)$.
+Therefore, the predicted total-return price $p_{pred}\left(t\right)$
+is calculated in the same manner.
+
+The difference between the realized log-index path $X\left(t\right)$
+and the predicted path $X_{pred}\left(t\right)$ yields a new quantity,
+called the ``\textbf{short-horizon mean-reversion}'' (SMR) index:
+
+\begin{equation}
+\begin{aligned}Z_{\Delta T_{f}}\left(t\right) & \equiv X\left(t\right)-\left.X_{pred}\left(t\right)\right|_{\Delta T_{f}}.\end{aligned}
+\label{eq:Zt}
+\end{equation}
+
+We find that $Z_{\Delta T_{f}}\left(t\right)$ is mean-reverting between
+-0.5 and 0.5, in the same frequencies as the commonly-known business
+cycles, about 5-10 years. Thus it is called the ``short horizon''.
+
+From the perspective of $Y\left(t\right)$, we have the alternative
+expression:
+
+\begin{equation}
+\begin{aligned}Z_{\Delta T_{f}}\left(t\right) & \equiv Y\left(t\right)-\left.Y_{pred}\left(t\right)\right|_{\Delta T_{f}},\:\mathrm{where}\:Y_{pred}\left(t\right)\equiv X_{pred}\left(t\right)-\alpha\left(t\right).\end{aligned}
+\label{eq:Zt-Y}
+\end{equation}
+That is, $Z_{\Delta T_{f}}\left(t\right)$ is the residual between
+the realized $Y\left(t\right)$ and the predicted $Y\left(t\right)$,
+thus mean-reverting in much shorter cycles.
+
+This quantity explains the difference between long-term investing
+and short-term market-timing. For long-term investors, $Z_{\Delta T_{f}}\left(t\right)$
+can be considered as ``short-term noises.'' But for savvy portfolio
+managers, if its behavior is predictable, its pattern can be taken
+advantage of in each business cycle. We find that $Z_{\Delta T_{f}}\left(t\right)$
+is deeply correlated to the interest rate policy, and more specifically,
+the yield curve inversion. It will be briefly touched upon in this
+tutorial.
+
+\section{\label{sec:Loading-Package}Loading Package and Preparing Data}
+
+We begin with loading the \texttt{jubilee} package and setting up
+several essential data tables:
+
+\begin{Schunk}
+\begin{Sinput}
+> library(jubilee)
+> repo <- jubilee.repo(online=FALSE)
+\end{Sinput}
+\begin{Soutput}
+[1] "Maximum date in ie.data is 2018.08"
+\end{Soutput}
+\begin{Sinput}
+> ju <- jubilee(repo@ie, lookback.channel=45, fwd.rtn.duration=10)
+> dt <- ju@dtb
+> dj <- ju@reg.dtb
+\end{Sinput}
+\end{Schunk}
+
+The \texttt{repo} object is an instance of the \texttt{jubilee.repo}
+class. It stores the raw data, mainly in the \texttt{repo@ie} data
+table slot, which is named after ``irrational exuberance'' to honor
+the main data source of \citet{shiller2018}. The \texttt{ju} object
+is an instance of the \texttt{jubilee} class that most functions are
+based on. Inside the \texttt{ju} object, the \texttt{dt=ju@dtb} data
+table contains simple time series, many are directly copied from the
+\texttt{repo@ie} data table. The \texttt{dj=ju@reg.dtb} data table
+contains derived time series required for regression. The separation
+is to prevent each data table from getting too bulky. We will work
+with the \texttt{dj} data table most of the time.
+
+The \texttt{lookback.channel} parameter is set to 45 years, according
+to Section 2.4 of \citet{lihn2018}. The user is not expected to change
+this setting. The \texttt{fwd.rtn.duration} parameter corresponds
+to $\Delta T_{f}$, which is set to 10 for the 10-year forecast.
+
+The package comes with static data going back 100-200 years. The static
+data will be only updated by the infrequent releases of the package.
+The user can choose to amend the most recent data from the internet
+by specifying \texttt{online=TRUE}. This will allow you to make timely
+forecasts.
+
+The mapping between the mathematical notations and the columns in
+the data tables is described as follows:
+\begin{itemize}
+\item $t$ \texttt{= dj\$fraction} : Time in years. Each month is in the
+1/12 unit. Note that we follow Shiller's ``middle of the month''
+convention since he averages the quantity. But when we download the
+monthly data from FRED, we use the monthly data as is.
+\item $X\left(t\right)$ \texttt{= dj\$log.tri}: The logarithm of the total
+return index for SPX.
+\item $r_{f10}^{nom}\left(t\right)$ \texttt{= dj\$eqty.logr.f10}: The 10-year
+forward returns of $X\left(t\right)$.
+\item $r_{f20}^{nom}\left(t\right)$ \texttt{= dj\$eqty.logr.f20}: The 20-year
+forward returns of $X\left(t\right)$.
+\item $\mathrm{CPI}_{10}\left(t\right)$ \texttt{= dj\$cpi.logr.10}: The
+10-year (backward) log-return of CPI.
+\item $\mathrm{CPI}_{20}\left(t\right)$ \texttt{= dj\$cpi.logr.20}: The
+20-year (backward) log-return of CPI.
+\item $R\left(t\right)$ \texttt{= dj\$eqty.lm.r}: The channel return.
+\item $Y\left(t\right)$ \texttt{= dj\$eqty.lm.y}: The channel deviation.
+\item $\alpha\left(t\right)$ \texttt{= dj\$eqty.lm.a}: The trend-following
+channel moving average.
+\item $\log\left(\mathrm{CAPE}_{10}\left(t\right)\right)$ \texttt{= dj\$log.cape.10}:
+The 10-year log-CAPE.
+\item $\log\left(\mathrm{CAPE}_{20}\left(t\right)\right)$ \texttt{= dj\$log.cape.20}:
+The 20-year log-CAPE.
+\end{itemize}
+As a starter, the following R code demonstrates a plot on the channel
+deviation $Y(t)$ via the corresponding column \texttt{dj\$eqty.lm.y}
+in the data table. $Y(t)$ is the major analytical quantity that enhances
+the CAPE model. In Figure \ref{fig:channel-dev-Yt}, we observe four
+bottoms (1896, 1932, 1974, 2009) approximately 40 years apart. Such
+long cycle is essential for the long-term forecast model. But it is
+too long to work with for the business cycle forecast, which we will
+address in Section ``\nameref{sec:short-horizon}''.
+
+\begin{figure}[H]
+\begin{Schunk}
+\begin{Sinput}
+> J <- which(dj$fraction > 1881)  # defines the in-sample window
+> plot(dj$fraction[J], dj$eqty.lm.y[J], col="blue", type="l",
++      xlab="$t$", ylab="$Y(t)$",
++      main="The channel deviation Y(t)")
+> abline(h=0, col="red", lty=2)
+\end{Sinput}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-jubi-tut-demo-Yt-1}
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:channel-dev-Yt}The channel deviation $Y(t)$. It is mean-reverting
+with an approximate 40-year cycle. }
+
+\end{figure}
+
+\section{\label{sec:10y-Model}Regression of The 10-Year Returns }
+
+The fault lines $\left\{ \left(t_{i}^{adj},\Delta_{i}\log\mathrm{CAPE}_{\Delta T_{f}}\right),\forall i=1\cdots N\right\} $
+have been pre-packaged into data sets inside the function \texttt{jubilee.std\_fault\_line()}.
+The user only needs to choose which data set to use. Here we use ``\texttt{r\_nom\_f10\_5ftr\_4fl}'',
+which means ``for nominal return regression, forward 10 years, 5-factors,
+4 fault lines''. Its content is shown below:
+
+\begin{Schunk}
+\begin{Sinput}
+> fl.10 <- jubilee.std_fault_line("r_nom_f10_5ftr_4fl")
+> fl.10
+\end{Sinput}
+\begin{Soutput}
+  fraction  shift
+1  1907.06  1.464
+2  1935.61 -1.499
+3  1944.48 -1.245
+4  1985.85 -0.511
+\end{Soutput}
+\end{Schunk}
+
+The following R code shows the procedure described in Eq. (\nameref{eq:cape-adj-intro})
+and Eq. (\nameref{eq:forecast-Xt}) to adjust log-CAPE with the fault
+lines, perform the regression, and generate the prediction:
+
+\begin{Schunk}
+\begin{Sinput}
+> dj$log.cape10.adj <- jubilee.adj_fault_line(dj$fraction, dj$log.cape10, fl.10)
+> J <- which(dj$fraction > 1881)  # defines the in-sample window
+> df <- dj[J,]  # defines the in-sample data set
+> lm.10 <- lm(eqty.logr.f10 ~
++             eqty.lm.y + eqty.lm.r + log.cape10.adj + cpi.logr.10 + cpi.logr.20,
++             data=df)
+> pred.10 <- jubilee.predict(ju, lm.10, df)
+> summary(lm.10)
+\end{Sinput}
+\begin{Soutput}
+
+Call:
+lm(formula = eqty.logr.f10 ~ eqty.lm.y + eqty.lm.r + log.cape10.adj +
+    cpi.logr.10 + cpi.logr.20, data = df)
+
+Residuals:
+      Min        1Q    Median        3Q       Max
+-0.109371 -0.012513 -0.000082  0.013724  0.066172
+
+Coefficients:
+                 Estimate Std. Error t value Pr(>|t|)
+(Intercept)     0.4062150  0.0064757  62.729   <2e-16 ***
+eqty.lm.y      -0.0893561  0.0019190 -46.563   <2e-16 ***
+eqty.lm.r      -2.7805793  0.0598065 -46.493   <2e-16 ***
+log.cape10.adj -0.0433002  0.0008134 -53.235   <2e-16 ***
+cpi.logr.10    -0.0634470  0.0343203  -1.849   0.0647 .
+cpi.logr.20     1.0032720  0.0444151  22.589   <2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 0.02046 on 1525 degrees of freedom
+  (121 observations deleted due to missingness)
+Multiple R-squared:  0.8128,	Adjusted R-squared:  0.8122
+F-statistic:  1324 on 5 and 1525 DF,  p-value: < 2.2e-16
+\end{Soutput}
+\end{Schunk}
+
+The summary statistics shows $R^{2}$ above 80\%, indicating the regression
+has very high explanatory power. The prediction logic is encapsulated
+in the \texttt{jubilee.predict()} function, which produces the \texttt{pred.10}
+data table, containing many useful columns in a single table. The
+some column definitions in \texttt{pred.10} are described below:
+\begin{itemize}
+\item $X_{pred}\left(t\right)$ \texttt{= pred.10\$log.tri} : The predicted
+log-index.
+\item $\left[r_{f10}^{nom}\left(t\right)\right]_{pred}$ \texttt{= pred.10\$logr}
+: The predicted nominal returns.
+\item $p_{pred}\left(t\right)$ = \texttt{pred.10\$price} : The predicted
+SPX total-return price, rebased according to the SPX price of the
+most recent month.
+\item $Y_{pred}\left(t\right)$ \texttt{= pred.10\$eqty.lm.y} : The predicted
+$Y\left(t\right)$.
+\item $X\left(t\right)$ \texttt{= pred.10\$log.tri.source} : The realized
+log-index. (An interpolated copy.)
+\item $p\left(t\right)$ \texttt{= pred.10\$tri.source} : The realized SPX
+total-return price, rebased according to the SPX price of the most
+recent month. (An interpolated copy.)
+\item $\alpha\left(t\right)$ \texttt{= pred.10\$eqty.lm.a.source} : The
+realized $\alpha\left(t\right)$. (An interpolated copy.)
+\end{itemize}
+The forward-return regression can be visualized in Figure \ref{fig:f10-return-plot}
+by the following R code:
+
+\begin{figure}[H]
+\begin{Schunk}
+\begin{Sinput}
+> plot(pred.10$fraction[J], pred.10$logr[J]*100, col="red", type="l",
++      xlab="$t$", ylab="$r_{f10}^{nom}(t)$",
++      main="10-year nominal forecast, 5-factor tectonic CAPE model")
+> lines(df$fraction, df$eqty.logr.f10*100, col="blue")
+> for (i in 1:NROW(fl.10)) { abline(v=fl.10[i,1], col="blue", lty=2) }  # faults
+\end{Sinput}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-jubi-tut-forecast-10y-rtn-1}
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:f10-return-plot}The 10-year nominal return forecast by
+5-factor tectonic CAPE model. The blue line is the realized returns.
+The red line is the predicted returns. The dotted blue lines are the
+locations of the faults.}
+\end{figure}
+
+We can also visualize the log-index as well as the price-level forecast
+since 1997 via the following plots in Figure \ref{fig:f10-X-and-p}.
+We observe that the predicted index is much smoother than the actual
+index. The prediction is of the long-term nature, forecasting SPX
+will exceed 5000 in ten years (dividend included). But it leaves out
+the short-horizon fluctuations unexplained, such as the late-1990
+rally, the dot-com crash, and the 2008-2009 crash and rebound.
+
+\begin{figure}[H]
+\begin{Schunk}
+\begin{Sinput}
+> J10 <- which(pred.10$fraction >= 1997)
+> par(mfcol=c(2,1))
+> plot(pred.10$fraction[J10], pred.10$log.tri[J10], col="red", type="l",
++      xlab="$t$", ylab="$X(t)$",
++      main="Forecast of log-index X(t) in 10y model")
+> lines(dj$fraction, dj$log.tri, cex=0.1, col="blue")
+>
+> plot(pred.10$fraction[J10], pred.10$price[J10], col="red", type="l",
++      xlab="$t$", ylab="$p(t)$",
++      main="Forecast of price index p(t) in 10y Model")
+> lines(pred.10$fraction, pred.10$tri.source, cex=0.1, col="blue")
+\end{Sinput}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-jubi-tut-forecast-10y-X-1}
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:f10-X-and-p}The log-index $X\left(t\right)$ and the price-level
+$p\left(t\right)$ forecasts since 1997 in the 10-year model. The
+blue lines are the realized values. The red lines are the predicted
+values.}
+
+\end{figure}
+
+\section{\label{sec:20y-Model}Forecast in The 20-Year Model}
+
+It was mentioned in the introduction that the 20-year period matches
+the natural frequency of the long-term mean-reversion cycles. Thus
+the 20-year regression requires the least tectonic adjustments. We
+also find that the 20-year model is more suitable to describe the
+short-horizon fluctuation. This gives us the incentive to explore
+it in depth here in the tutorial.
+
+We repeat the data loading procedure, except that the \texttt{fwd.rtn.duration}
+parameter $\Delta T_{f}$ is set to 20 years:
+
+\begin{Schunk}
+\begin{Sinput}
+> repo <- jubilee.repo(online=FALSE)
+\end{Sinput}
+\begin{Soutput}
+[1] "Maximum date in ie.data is 2018.08"
+\end{Soutput}
+\begin{Sinput}
+> ju <- jubilee(repo@ie, lookback.channel=45, fwd.rtn.duration=20)
+> dt <- ju@dtb
+> dj <- ju@reg.dtb
+\end{Sinput}
+\end{Schunk}
+
+Next, we use the fault line data set ``\texttt{r\_nom\_f20\_5ftr\_2fl\_ramp5y}'',
+which means ``for nominal return regression, forward 20 years, 5-factors,
+2 fault lines, 5-year ramp-up'', shown below. The 5-year ramp-up
+time smooths out the two jumps caused by the fault lines.
+
+\begin{Schunk}
+\begin{Sinput}
+> fl.20 <- jubilee.std_fault_line("r_nom_f20_5ftr_2fl_ramp5y")
+> fl.20
+\end{Sinput}
+\begin{Soutput}
+  fraction  shift
+1  1902.42 -1.077
+2  1929.20 -1.499
+\end{Soutput}
+\end{Schunk}
+
+Note that the two fault lines are before WWII. We like the fact that
+they are not intrusive to the modern history after WWII. This indicates
+that, from the perspective of 20-year window, the modern economic
+history has been quite stable. The forward-return regression is performed
+as following:
+
+\begin{Schunk}
+\begin{Sinput}
+> dj$log.cape20.adj <- jubilee.adj_fault_line(dj$fraction, dj$log.cape20, fl.20, months=12*5)
+> J <- which(dj$fraction > 1881)
+> df <- dj[J,]
+> lm.20 <- lm(eqty.logr.f20 ~
++             eqty.lm.y + eqty.lm.r + log.cape20.adj + cpi.logr.10 + cpi.logr.20,
++             data=df)
+> pred.20 <- jubilee.predict(ju, lm.20, df)
+> summary(lm.20)
+\end{Sinput}
+\begin{Soutput}
+
+Call:
+lm(formula = eqty.logr.f20 ~ eqty.lm.y + eqty.lm.r + log.cape20.adj +
+    cpi.logr.10 + cpi.logr.20, data = df)
+
+Residuals:
+      Min        1Q    Median        3Q       Max
+-0.042835 -0.007443  0.000186  0.006396  0.046113
+
+Coefficients:
+                 Estimate Std. Error t value Pr(>|t|)
+(Intercept)     0.0953545  0.0020634   46.21   <2e-16 ***
+eqty.lm.y      -0.0263333  0.0011202  -23.51   <2e-16 ***
+eqty.lm.r       0.3870855  0.0251995   15.36   <2e-16 ***
+log.cape20.adj -0.0248600  0.0003975  -62.53   <2e-16 ***
+cpi.logr.10     0.3253473  0.0165975   19.60   <2e-16 ***
+cpi.logr.20    -0.8881380  0.0265572  -33.44   <2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 0.01105 on 1286 degrees of freedom
+  (360 observations deleted due to missingness)
+Multiple R-squared:  0.8602,	Adjusted R-squared:  0.8597
+F-statistic:  1583 on 5 and 1286 DF,  p-value: < 2.2e-16
+\end{Soutput}
+\end{Schunk}
+
+The summary statistics shows $R^{2}$ above 85\%, indicating the regression
+has very high explanatory power. All the factors are highly significant.
+The return regression can be visualized in Figure \ref{fig:f20-return-plot}
+by the following R code:
+
+\begin{figure}[H]
+\begin{Schunk}
+\begin{Sinput}
+> plot(pred.20$fraction[J], pred.20$logr[J]*100, col="red", type="l",
++      xlab="$t$", ylab="$r_{f20}^{nom}(t)$", ylim=c(2,17),
++      main="20-year nominal forecast, 5-factor tectonic CAPE model")
+> lines(df$fraction, df$eqty.logr.f20*100, col="blue")
+> for (i in 1:NROW(fl.20)) { abline(v=fl.20[i,1], col="blue", lty=2) }  # faults
+\end{Sinput}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-jubi-tut-forecast-20y-rtn-1}
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:f20-return-plot}The 20-year nominal return forecast by
+5-factor tectonic CAPE model. The blue line is the realized returns.
+The red line is the predicted returns. The dotted blue lines are the
+locations of the faults.}
+\end{figure}
+
+\subsection{Prediction of X(t) and Y(t)}
+
+The log-index forecast from the 20-year model is shown in the upper
+panel of Figure \ref{fig:f20-X-forecast}. The blue line is the realized
+$X\left(t\right)$. The solid red line is the predicted path from
+the 20-year model. The dotted red line is the predicted path from
+the 10-year model. We observe that the two red lines generally agree.
+But the 20-year model produces slightly more optimistic forecast than
+the 10-year model for the next decade.
+
+We notice again that the predicted path is much smoother than the
+realized path in the in-sample period. This difference can be best
+illustrated by the lower panel of Figure \ref{fig:f20-X-forecast}.
+The blue line is the realized $Y\left(t\right)$. The solid red line
+is $Y_{pred}\left(t\right)$ from the 20-year model. Their difference
+leads us to define the next important quantity: the ``\textbf{short-horizon
+mean reversion}'' index. It will be explored in the rest of this
+paper.
+
+\begin{figure}[H]
+\begin{Schunk}
+\begin{Sinput}
+> par(mfcol=c(2,1))
+> J20 <- which(pred.20$fraction >= 1988 & pred.20$fraction <= 2038)
+> plot(pred.20$fraction[J20], pred.20$log.tri[J20], type="l", col="red",
++      xlab="$t$", ylab="$X(t)$",
++      main="Prediction of log index X(t) in 20y model")
+> lines(dt$fraction, dt$log.tri, cex=0.1, col="blue")
+> lines(pred.10$fraction[J20], pred.10$log.tri[J20], type="l", col="red", lty=2)
+>
+> JY <- which(dj$fraction > 1912)
+> plot(dj$fraction[JY], dj$eqty.lm.y[JY], type="l", col="blue",
++      xlab="$t$", ylab="$Y(t)$",
++      main="Predicted and actual Y(t) in 20y model")
+> lines(pred.20$fraction[JY], pred.20$eqty.lm.y[JY], col="red")
+\end{Sinput}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-jubi-tut-forecast-20y-X-1}
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:f20-X-forecast}\textbf{Upper Panel: }The log-index $X\left(t\right)$
+forecasts since 1988 in both the 10-year and 20-year models. The blue
+line is the realized $X\left(t\right)$. The solid red line is the
+predicted path from the 20-year model. The dotted red line is the
+predicted path from the 10-year model. \textbf{Lower Panel:} The blue
+line is the realized $Y\left(t\right)$, since 1912. Since $Y\left(t\right)$
+is mean-reverting, a clear historical plot can be presented.The solid
+red line is the predicted path $Y_{pred}\left(t\right)$ from the
+20-year model. The predicted path is much smoother than the realized
+path. }
+
+\end{figure}
+
+\section{\label{sec:short-horizon}Short-Horizon Mean Reversion}
+
+The long-term model leaves ample room for short-horizon fluctuations.
+If you are truly a buy-and-hold long-term investor, this fluctuation
+should not trouble you. However, individuals and organizations have
+utilities in limited time frame. Asset bubble forces you to buy at
+expensive prices. Steep downside fluctuation becomes an acute problem
+when you have to withdraw funds from your investment. In this section,
+we provide a preliminary framework to understand such fluctuation.
+This topic is still under research, thus the exploration here is quite
+open-ended.
+
+An interesting outcome of the 20-year model is that the ``\textbf{short-horizon
+mean reversion}'' (SMR) index is least noisy and most meaningful.
+It is mainly due to the fact that there is no fault line adjustment
+after WWII.
+
+\begin{equation}
+\begin{aligned}Z_{20}\left(t\right) & \equiv X\left(t\right)-\left.X_{pred}\left(t\right)\right|_{\Delta T_{f}=20}.\\
+ & \equiv Y\left(t\right)-\left.Y_{pred}\left(t\right)\right|_{\Delta T_{f}=20}
+\end{aligned}
+\label{eq:Zt-20}
+\end{equation}
+$Z_{20}\left(t\right)$ is stored in the \texttt{log.tri.smr} column
+in the \texttt{pred.20} data table. Its style statistics is shown
+below:
+
+\begin{Schunk}
+\begin{Sinput}
+> mean(pred.20$log.tri.smr, na.rm=TRUE)
+\end{Sinput}
+\begin{Soutput}
+[1] -1.488582e-05
+\end{Soutput}
+\begin{Sinput}
+> sd(pred.20$log.tri.smr, na.rm=TRUE)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.2205809
+\end{Soutput}
+\begin{Sinput}
+> moments::skewness(pred.20$log.tri.smr, na.rm=TRUE)
+\end{Sinput}
+\begin{Soutput}
+[1] 0.1624812
+\end{Soutput}
+\begin{Sinput}
+> moments::kurtosis(pred.20$log.tri.smr, na.rm=TRUE)
+\end{Sinput}
+\begin{Soutput}
+[1] 4.27901
+\end{Soutput}
+\end{Schunk}
+
+As one can see, its mean is zero, thus a mean-reverting process. As
+shown in Figure \ref{fig:20y-smr-plot}, whenever $Z_{20}\left(t\right)$
+swings to 2-stdev, it usually indicates the market is in extreme conditions,
+either over-sold or over-bought.
+
+\begin{figure}[H]
+\begin{Schunk}
+\begin{Sinput}
+> J <- which(dj$fraction > 1912)
+> plot(pred.20$fraction[J], pred.20$log.tri.smr[J], type="l", col="blue",
++      ylab="$Z_{20}(t)$", xlab="$t$",
++      main="Short-horizon mean reversion in 20y model")
+> abline(h=0, col="red", lty=2)
+> sd2 <- 2*sd(pred.20$log.tri.smr, na.rm=TRUE)
+> abline(h=sd2, col="blue", lty=2)
+> abline(h=-sd2, col="blue", lty=2)
+\end{Sinput}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-jubi-tut-20y-smr-raw-plot-1}
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:20y-smr-plot}The short-horizon mean reversion (SMR) index
+$Z_{20}\left(t\right)$, drawn in the blue line. The dotted blue lines
+are the $\pm2$-stdev of $Z_{20}\left(t\right)$. }
+
+\end{figure}
+
+The log-index $X\left(t\right)$ can be viewed as a decomposition
+of the long-term component $X_{pred}\left(t\right)$ and the short-term
+component $Z_{20}\left(t\right)$. The long-term component can be
+predicted by our enhanced ``Tectonic CAPE'' model. What drives the
+short-term component? Our view is that $Z_{20}\left(t\right)$ is
+mainly influenced by the interest rate policy, barring major world
+wars. We will also examine the unemployment rate and inflation.
+
+\subsection{Interest Rate Policy and Yield Spread}
+
+Yield curve inversion has been found to be one of the most reliable
+leading indicators of the past several large-scale bear markets. Yield
+spread is the most powerful policy tool that affects all aspects of
+macro-economics.
+
+The economic reasoning of yield curve inversion is quite appealing:
+The stock market can be viewed as a large financial operation that
+borrows on the short-term rate and lends on the long-term rate. Companies
+such as banks can build leverage to enhance their returns from the
+spead. But other companies can use excessive leverage to \textquotedblleft game
+the system\textquotedblright , so to speak. Thus, modulating the yield
+spread is a key policy tool for FED to tame the speculation. When
+the yield spread turns negative, there is no profit to be made, causing
+dismal earnings for several quarters, and the stock price crashes
+due to lower valuation. Some companies with poor balance sheet may
+go into bankruptcy. This chilling effect usually lingers for about
+12-24 months.
+
+Furthermore, the narrowing of yield spread creates a regime switching
+scenario. In a red hot economy, as the yield spread becomes smaller,
+some executives would not think of reducing their balance sheet risk.
+Instead, many of them would choose to increase the leverage, in order
+to generate equal or more profit and justify the rising stock price.
+Suddenly, the yield curve is inverted, the mathematics of leveraging
+reaches a singularity. And the balance sheets of these companies collapse.
+
+Later, we will introduce the concept of ``unemployment rate as high-yield
+bond''. This extends the influence of interest rate policy far beyond
+the financial sector. In the internet age, the largest companies are
+all in the consumer sector selling goods and products to the vast
+consumers. Employment rate is their borrowing.
+
+In some occasions, FED's tightening was in a straight path to inversion.
+But in other times, FED might swing in short cycles of tightening
+and easing before touching down on the ultimate inversion. The current
+trend points to next inversion around year 2020, but it is totally
+up to the FED to make it happen or not.
+
+Given the following attributes:
+\begin{itemize}
+\item $GS_{10}\left(t\right)$ \texttt{= dj\$rate.gs10}: the yield of 10-year
+Treasury,
+\item $GS_{3m}\left(t\right)$ \texttt{= dj\$rate.tb3ms}: the yield of 3-month
+Treasury bill,
+\item $YS\left(t\right)\equiv GS_{10}\left(t\right)-GS_{3m}\left(t\right)$
+\texttt{= dj\$rate.spread}: the yield spread,
+\end{itemize}
+we define the centered yield spread normalized by the 10-year yield:
+
+\begin{equation}
+\begin{aligned}\widehat{YS}\left(t\right) & \equiv\frac{YS\left(t\right)-\left\langle YS\left(t\right)\right\rangle }{GS_{10}\left(t\right)}.\end{aligned}
+\label{eq:YCI-normalized}
+\end{equation}
+It is calculated and stored in \texttt{dj\$rate.spread.norm} column.
+Here $\left\langle YS\left(t\right)\right\rangle $ is the mean of
+$YS\left(t\right)$, which is approximately 1.5\% as shown by the
+variable \texttt{rate.spread.mean} below, which is also a slot in
+the \texttt{ju} object. It is the equilibrium level of yield spread.
+
+Our first finding is that $Z_{20}\left(t\right)$ is deeply related
+to $\widehat{YS}\left(t\right)$. This is illustrated in Figure \ref{fig:20y-smr-ys-plot}.
+The two quantities have nearly the same magnitude, that is, $Z_{20}\left(t\right)\approx\widehat{YS}\left(t\right)$.
+They often move in tandem. Every yield curve inversion (shown as vertical
+dotted red lines) coincides with the market top, and the following
+easing matches the bottom of the selloff. For the equity market, yield
+spread inversion is the decisive turning point that causes regime
+switching from a bull market to a bear market. On the contrary, the
+market switches back from a bear market to a bull market expeditedly
+once the yield spread is widened large enough.
+
+\begin{figure}[H]
+\begin{Schunk}
+\begin{Sinput}
+> rate.spread.mean <- mean(dj$rate.spread, na.rm=TRUE)
+> rate.spread.mean
+\end{Sinput}
+\begin{Soutput}
+[1] 1.468935
+\end{Soutput}
+\begin{Sinput}
+> J <- which(dj$fraction > 1912)
+> ma <- function(x,n,sides=1){filter(x,rep(1/n,n), sides=sides)}
+> plot(pred.20$fraction[J], pred.20$log.tri.smr[J], type="l", lwd=1, col="blue",
++      ylab="$Z_{20}(t)$ vs $-\\widehat{YS}(t)$", xlab="$t$",
++      main="Short-horizon mean reversion and yield spread inversion")
+> lines(dj$fraction[J], ma(-dj$rate.spread.norm,3)[J], type="l", col="red")
+> for (t in repo@yield.inversion) { abline(v=t, lty=2, col="red") }
+> abline(h=0, col="blue", lty=2)
+\end{Sinput}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-jubi-tut-20y-smr-YS-plot-1}
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:20y-smr-ys-plot}Overlay of normalized yield spread $\widehat{YS}\left(t\right)$
+(red line) with $Z_{20}\left(t\right)$ (blue line). The vertical
+dotted red lines are the locations of maximum yield spread inversion
+in each business cycle. Here $\widehat{YS}\left(t\right)$ is smoothed
+by 3-month moving average to make it less noisy in the plot. }
+
+\end{figure}
+
+\subsection{The Uncertainty Principle}
+
+However, how wide of the yield spread is ``wide enough''? Is the
+fluctuation of the stock market affected to the interest rate environment
+it is in? We think this is related to the following quantity. Define
+the modified inverse of 10-year yield $GSI\left(t\right)$ as
+
+\begin{equation}
+\begin{aligned}GSI\left(t\right) & \equiv\frac{\left\langle YS\left(t\right)\right\rangle }{GS_{10}\left(t\right)}.\end{aligned}
+\label{eq:GSI}
+\end{equation}
+It is calculated and stored in \texttt{dj\$rate.gs10.modinv} column.
+The fact that $Z_{20}\left(t\right)\approx\widehat{YS}\left(t\right)$
+implies that the maximum amplitude of $Z_{20}\left(t\right)$ is approximately
+$GSI\left(t\right)$, which associates the volatility of the equity
+market with the inverse of the long-term interest rate. We call this
+relation the \textbf{Uncertainty Principle}. This explains that, on
+one hand, in a low interest rate environment, the equity market is
+susceptible to high volatility. On the other hand, the equity market
+is fairly dormant in a high interest rate environment, e.g. Dow was
+flat from 1966 to 1981.
+
+Figure \ref{fig:20y-smr-gsi-plot} adds the overlay of $GSI\left(t+74/12\right)$
+with $Z_{20}\left(t\right)$ and $\widehat{YS}\left(t\right)$. The
+74-month shift is described in Section 9.1 of \citet{lihn2018} as
+the equity market's lead time over GS10. We draw $\pm GSI\left(t\right)$
+in purple lines to form an envelope, and we smooth $GSI\left(t\right)$
+by its 24-month moving average to remove the noise.
+
+We observe that the $GSI\left(t\right)$ envelope indeed describes
+the fluctuation of $Z_{20}\left(t\right)$ quite well. The equity
+market went through very large swings whenever the Treasury yield
+was trending into the low interest rate period. The first incident
+was marked by the big rally from 1921 to the 1929 peak, followed by
+a decade of turmoils, including WWII. The second incident was marked
+by the irrational exuberance leading to the 2000 peak, followed by
+two severe bear markets in the next decade.
+
+Statistically speaking, it is far from certain to prove whether such
+statement can be true or not. The GS10 cycle is so long (80 years)
+that you won't see the next low interest rate environment until the
+end of the century.
+
+\begin{figure}[H]
+\begin{Schunk}
+\begin{Sinput}
+> plot(pred.20$fraction[J], pred.20$log.tri.smr[J], type="l", lwd=1, col="blue",
++      ylab="$Z_{20}(t)$", xlab="$t$",
++      main="Uncertainty principle: Z(t) and inverse of GS10 (GSI)")
+> lines(dj$fraction[J], ma(-dj$rate.spread.norm,3)[J], type="l", col="red")
+> abline(h=0, col="blue", lty=2)
+> GSI <- dj$rate.gs10.modinv
+> lines(dj$fraction[J]-74/12, ma(GSI,24)[J], col="purple", lty=2, lwd=2)
+> lines(dj$fraction[J]-74/12, -ma(GSI,24)[J], col="purple", lty=2, lwd=2)
+\end{Sinput}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-jubi-tut-20y-smr-GSI-plot-1}
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:20y-smr-gsi-plot}Overlay of the modified inverse of 10-year
+yield $GSI\left(t+74/12\right)$ with $Z_{20}\left(t\right)$ (the
+blue line). The 74-month shift is the equity market's lead time over
+Treasury market. We draw $\pm GSI\left(t\right)$ in purple dotted
+lines to form an envelope, and we smooth $GSI\left(t\right)$ by its
+24-month moving average to remove the noise. The red line is the yield
+spread.}
+
+\end{figure}
+
+\subsection{Unemployment Rate as Alternative High-Yield Bond}
+
+The unemployment rate (UNRATE) is highly correlated to the interest
+rate policy and is a major barometer of the health of the economy.
+We observe that, after WWII, the unemployment rate can be thought
+of as a high-yield bond. That is, in a low interest rate environment,
+the lowest unemployment rate tends to be very low. In a high interest
+rate environment, even the best unemployment rate is still quite high.
+This makes sense. Corporations have to compare the cost of employment
+to the cost of the capital.
+
+In addition, the unemployment rate is a clear indicator how the economy
+responds to the yield spread tightening and easing. We find that the
+unemployment rate since 1950 (post-WWII) can be regressed in the following
+three-factor model:
+
+\begin{equation}
+\begin{aligned}UNRATE\left(t\right) & \sim\beta_{0}+\beta_{1}GS_{10}\left(t\right)+\beta_{2}GSI\left(t\right)+\beta_{3}\widehat{YS}\left(t\right)+\varepsilon.\end{aligned}
+\label{eq:unrate-regression}
+\end{equation}
+
+The role of the $\beta_{2}GSI\left(t\right)$ term can be seen as
+modifying the weight of the mean $\left\langle YS\left(t\right)\right\rangle $
+inside $\widehat{YS}\left(t\right)$ from 1 to $\left(1-\beta_{2}/\beta_{3}\right)$.
+This regression is shown below:
+
+\begin{Schunk}
+\begin{Sinput}
+> J <- which (dt$fraction >= 1950)
+> a <- lm(unrate ~ rate.gs10 + rate.gs10.modinv + rate.spread.norm, data=dj[J])
+> summary(a)
+\end{Sinput}
+\begin{Soutput}
+
+Call:
+lm(formula = unrate ~ rate.gs10 + rate.gs10.modinv + rate.spread.norm,
+    data = dj[J])
+
+Residuals:
+    Min      1Q  Median      3Q     Max
+-1.9943 -0.8236 -0.0185  0.6929  3.2628
+
+Coefficients:
+                 Estimate Std. Error t value Pr(>|t|)
+(Intercept)       2.33924    0.26210   8.925   <2e-16 ***
+rate.gs10         0.40503    0.02414  16.777   <2e-16 ***
+rate.gs10.modinv  3.38150    0.39755   8.506   <2e-16 ***
+rate.spread.norm  4.73820    0.16568  28.598   <2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 1.03 on 819 degrees of freedom
+  (1 observation deleted due to missingness)
+Multiple R-squared:  0.6053,	Adjusted R-squared:  0.6039
+F-statistic: 418.7 on 3 and 819 DF,  p-value: < 2.2e-16
+\end{Soutput}
+\end{Schunk}
+
+All three factors are highly significant. The $R^{2}$ is above 60\%,
+which is quite high\footnote{Note that it would yield similar $R^{2}$ if the first factor is replaced
+with $\beta_{1}GS_{3m}\left(t\right)$.}. $\beta_{0}\approx2.34$ can be interpreted as a baseline unemployment
+rate. The remaining terms expand into a complicated nonlinear relation
+on $GS_{10}\left(t\right)$ such as
+
+\begin{equation}
+\begin{aligned}UNRATE\left(t\right) & \sim\beta_{0}+\beta_{1}GS_{10}\left(t\right)+\beta_{3}\frac{YS\left(t\right)-\left(1-\beta_{2}/\beta_{3}\right)\left\langle YS\left(t\right)\right\rangle }{GS_{10}\left(t\right)}+\varepsilon.\\
+ & \sim\left(\beta_{0}+\beta_{3}\right)+\beta_{1}GS_{10}\left(t\right)+\left(\beta_{2}-\beta_{3}\right)\frac{\left\langle YS\left(t\right)\right\rangle }{GS_{10}\left(t\right)}-\beta_{3}\frac{GS_{3m}\left(t\right)}{GS_{10}\left(t\right)}+\varepsilon
+\end{aligned}
+\label{eq:unrate-reg2}
+\end{equation}
+
+Figure \ref{fig:unrate} shows the result of this regression. At each
+peak of a business cycle when $YS\left(t\right)\approx0$, we have
+$GS_{3m}\left(t\right)\approx GS_{10}\left(t\right)$ and $\widehat{YS}\left(t\right)\approx-GSI\left(t\right)$.
+Then the lowest unemployment rate at that moment can be estimated
+by
+
+\begin{equation}
+\begin{aligned}UNRATE_{min}\left(t\right) & \equiv\beta_{0}+\beta_{1}GS_{10}\left(t\right)+\left(\beta_{2}-\beta_{3}\right)\frac{\left\langle YS\left(t\right)\right\rangle }{GS_{10}\left(t\right)}.\\
+ & \approx2.34+0.41\times GS_{10}\left(t\right)-\frac{2.0}{GS_{10}\left(t\right)}
+\end{aligned}
+\label{eq:unrate-min}
+\end{equation}
+Notice that $UNRATE_{min}\left(t\right)$ depends on $GS_{10}\left(t\right)$
+alone! We observe in Figure \ref{fig:unrate} that $UNRATE_{min}\left(t\right)$
+matches the lowest unemployment rate in each cycle peak quite well
+(with 1970 as a major exception). It provides a lower bound on the
+unemployment rate.
+
+A cyclically increasing unemployment rate is the best confirmation
+of a bear market. There are unemployment spikes at the depths of some
+recessions, e.g. in 1974-75, in early 1980 and around 2010, that are
+not captured by the regression. These spikes, recorded by the residual
+$\varepsilon$, are what we call the ``high-yield'' elements in
+the unemployment rate.
+
+In this business cycle, between 2013 and 2016, $UNRATE_{min}\left(t\right)$
+went below 2\% briefly when $GS_{10}\left(t\right)$ was below 1.85\%.
+When the next yield spread will be inverted (in 2020?), if $GS_{10}\left(t\right)$
+stays below 3\%, the minimum unemployment rate can go as low as 3\%.
+
+\begin{figure}[H]
+\begin{Schunk}
+\begin{Sinput}
+> plot(dj$fraction[J], dj$unrate[J], type="l", col="blue",
++ 	 ylab="UNRATE", xlab="$t$", ylim=c(1.5,11),
++      main=sprintf("Unemployment rate as alternative high-yield bond"))
+> lines(dj$fraction[J], predict(a, newdata=dj[J]), col="red")
+> ac <- a$coefficients
+> unrate.min <- ac[1]+ac[2]*dj$rate.gs10+(ac[3]-ac[4])*GSI
+> lines(dj$fraction[J], ma(unrate.min,3)[J], col="black", lwd=2, lty=3)
+> for (t in repo@yield.inversion) { abline(v=t, lty=2, col="red") }
+\end{Sinput}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-jubi-tut-unrate-1}
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:unrate}Unemployment rate $UNRATE\left(t\right)$ (the
+blue line) and its 3-factor regression to the bond market (the red
+line). The dotted vertical red lines mark the locations of yield spread
+inversion. The dotted black line is $UNRATE_{min}\left(t\right)$
+(smoothed by 3-month moving average).}
+
+\end{figure}
+
+\subsection{One-Year Change of Unemployment Rate}
+
+Just as important as observing the yield spread inversion, we also
+want to observe the inversion of the unemployment rate. The 1-year
+change (log-return) of the unemployment rate $r_{UNR}\left(t\right)$
+is defined as
+
+\begin{equation}
+\begin{aligned}r_{UNR}\left(t\right) & \equiv\log\,UNRATE\left(t\right)-\log\,UNRATE\left(t-1\right).\end{aligned}
+\label{eq:unrate-logr}
+\end{equation}
+We find that $r_{UNR}\left(t\right)$ shows striking correlation with
+$-\widehat{YS}\left(t\right)$ and $Z_{20}\left(t\right)$, as shown
+in Figure \nameref{fig:yoy-log-unrate}. The combination of a weakening
+employment and the yield spread inversion appears to provide very
+convincing signal for a coming bear market. After the yield spread
+inversion, if $r_{UNR}\left(t\right)$ also turn negative, the recession
+is around the corner. The economy will continue to shed jobs until
+the yield spread is wide enough to provide corporations incentive
+to hire again. This process usually will take 12-24 months from past
+experiences.
+
+\begin{figure}[H]
+\begin{Schunk}
+\begin{Sinput}
+> J <- which (dt$fraction >= 1950)
+> plot(pred.20$fraction[J], pred.20$log.tri.smr[J], type="l", col="blue",
++      ylab="$Z_{20}(t)$", xlab="$t$", ylim=c(-0.6,0.6),
++      main="Z(t) and YoY log-change of UNRATE")
+> lines(dj$fraction[J], -ma(dj$unrate.logr.1,3)[J], type="l", col="red", lwd=2)
+> abline(h=0, col="blue", lty=2)
+> lines(dj$fraction[J], ma(-dj$rate.spread.norm,3)[J], type="l", col="gray")
+> for (t in repo@yield.inversion) { abline(v=t, lty=2, col="gray") }
+\end{Sinput}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-jubi-tut-unrate-yoy-1}
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:yoy-log-unrate}The reversal of $Z_{20}\left(t\right)$
+(the blue line), $r_{UNR}\left(t\right)$ (the red line) and $-\widehat{YS}\left(t\right)$
+(the gray line). When $r_{UNR}\left(t\right)$ turns negative and
+$\widehat{YS}\left(t\right)$ undergoes a yield spread inversion,
+it is a clear indicator that $Z_{20}\left(t\right)$ has entered a
+bear market.}
+
+\end{figure}
+
+\subsection{Inflation}
+
+Lastly, in some circumstances, FED raises short-term rate in order
+to combat the rising inflation. Let $\Delta\mathrm{CPI}_{f1}\left(t\right)$
+as the forward 1-year inflation rate $\mathrm{CPI}_{f1}\left(t\right)$
+in excess of $GS_{10}\left(t\right)$. They are defined as
+
+\begin{equation}
+\begin{aligned}\mathrm{CPI}_{f1}\left(t\right) & \equiv\log\,\mathrm{CPI}\left(t+1\right)-\log\,\mathrm{CPI}\left(t\right);\\
+\Delta\mathrm{CPI}_{f1}\left(t\right) & \equiv\mathrm{CPI}_{f1}\left(t\right)-GS_{10}\left(t\right).
+\end{aligned}
+\label{eq:CPI-logr-f1}
+\end{equation}
+We find that $\Delta\mathrm{CPI}_{f1}\left(t\right)$ is correlated
+with the yield spread during some periods. This is illustrated in
+Figure \ref{fig:inflation}. The policy of combating inflation is
+quite obvious in the 1970's. $\Delta\mathrm{CPI}_{f1}\left(t\right)$
+moves in tandem with $-2\left(YS\left(t\right)-\left\langle YS\left(t\right)\right\rangle \right)$.
+After 1980, $\Delta\mathrm{CPI}_{f1}\left(t\right)$ is mostly negative,
+there has been a fairly large premium between $GS_{10}\left(t\right)$
+and one-year inflation. Thus such policy goal is much less clear.
+After 2000, FED was able to maintain $\Delta\mathrm{CPI}_{f1}\left(t\right)$
+barely below zero. Only recently, such premium is disappearing gradually,
+$\Delta\mathrm{CPI}_{f1}\left(t\right)$ is inching up above zero.
+And FED is indeed raising the short-term rate to combat it.
+
+\begin{figure}[H]
+\begin{Schunk}
+\begin{Sinput}
+> plot(dj$fraction[J], (dj$cpi.logr.f1*100-dj$rate.gs10)[J],
++      type="l", col="blue", ylab="$\\Delta\\mathrm{CPI}_{f1}(t)$", xlab="$t$",
++      ylim=c(-10, 10),
++      main=sprintf("YoY forward inflation vs yield spread"))
+> lines(dj$fraction[J], (-2*(dj$rate.spread-ju@rate.spread.mean))[J], col="red")
+> abline(h=0, lty=2, col="blue")
+> abline(h=ju@rate.spread.mean*2, lty=2, col="blue")
+> for (t in repo@yield.inversion) { abline(v=t, lty=2, col="red") }
+\end{Sinput}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-jubi-tut-inflation-1}
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:inflation}The 1-year forward inflation rate in excess
+of GS10: $\Delta\mathrm{CPI}_{f1}\left(t\right)$ (blue line). The
+red line is $-2\left(YS\left(t\right)-\left\langle YS\left(t\right)\right\rangle \right)$
+indicating the strength of yield spread needed to suppress the runaway
+inflation. The top dotted blue line is the constant $2\left\langle YS\left(t\right)\right\rangle $,
+showing where the yield spread becomes inverted. }
+
+\end{figure}
+
+\section{Discussion}
+
+We've shown that yield spread inversion is likely a major factor that
+causes the stock market to turn south. It can cause the stock market
+to drop 40-50\% in 12-24 months. It also has a dire social consequence
+of causing the unemployment rate to spike. FED must invoke the inversion
+with extreme care.
+
+We find that the best interpretation of FED's motivation to invoke
+a yield spread inversion is to cure an asset bubble. In 1970's, it
+was for the rising inflation, especially in gold and oil. This was
+consummated in 1980 with an ultimate peak of inflation, GS10, and
+the commodity bubble. In 1990, it was for the junk bond bubble and
+the Japanese stock market. Because the level of SPX was fairly subdued
+in terms of $Z_{20}\left(t\right)$ during this period, it didn't
+cause a big drop in SPX. In 2000, it was for the dot-com mania. In
+2007, it was for the sub-prime debt bubble.
+
+Thus in order to figure out the next bear market in $Z_{20}\left(t\right)$,
+one will need to watch a few things:
+\begin{enumerate}
+\item $YS\left(t\right)$: When will the yield spread become negative?
+\begin{enumerate}
+\item https://fred.stlouisfed.org/series/T10Y3M
+\end{enumerate}
+\item $UNRATE\left(t\right)$ and $r_{UNR}\left(t\right)$: When will the
+unemployment rate begin to rise? When will the 1-year change turn
+negative?
+\begin{enumerate}
+\item https://fred.stlouisfed.org/series/UNRATE
+\end{enumerate}
+\item $\Delta\mathrm{CPI}_{f1}\left(t\right)$: Is the 1-year inflation
+rate expected to exceed the 10-year Treasury yield?
+\item Ultimately, is there an asset bubble that makes FED uncomfortable?
+In SPX? In Nasdaq? In the bond market? In any major foreign stock
+market?
+\end{enumerate}
+
+\section{Acknowledgement}
+
+I thank Professor John Mulvey for his guidance and discussions for
+the series of works that lead to this R package.
+\begin{thebibliography}{Campbell and Shiller(1988)}
+\bibitem[Campbell and Shiller(1988)]{shiller1988}Campbell, John Y.,
+and Robert J. Shiller (1988). \textit{Stock Prices, Earnings, and
+Expected Dividends.} Journal of Finance, Vol. 43, No. 3, pp. 661-676.
+
+\bibitem[Campbell and Shiller(1998)]{shiller1998}Campbell, John Y.,
+and Robert J. Shiller. (1998). \textit{Valuation Ratios and the Long-Run
+Stock Market Outlook.} Journal of Portfolio Management, Vol. 24, No.
+2, pp. 11-26.
+
+\bibitem[Lihn(2018)]{lihn2018}Lihn, Stephen H.-T. (2018). \textit{Jubilee
+Tectonic Model: Forecasting Long-Term Growth and Mean Reversion in
+the U.S. Stock Market.} SSRN: 3156574.
+
+\bibitem[Shiller(2018)]{shiller2018}Robert J. Shiller (2018). \textit{Online
+Data for U.S. Stock Markets 1871-Present and CAPE Ratio.} http://www.econ.yale.edu/\textasciitilde{}shiller/data.htm
+\end{thebibliography}
+
+\end{document}

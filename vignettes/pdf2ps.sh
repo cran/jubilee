@@ -1,0 +1,11 @@
+pdf2ps .//z-jubi-tut-20y-smr-GSI-plot-1.pdf
+pdf2ps .//z-jubi-tut-20y-smr-raw-plot-1.pdf
+pdf2ps .//z-jubi-tut-20y-smr-YS-plot-1.pdf
+pdf2ps .//z-jubi-tut-demo-Yt-1.pdf
+pdf2ps .//z-jubi-tut-forecast-10y-rtn-1.pdf
+pdf2ps .//z-jubi-tut-forecast-10y-X-1.pdf
+pdf2ps .//z-jubi-tut-forecast-20y-rtn-1.pdf
+pdf2ps .//z-jubi-tut-forecast-20y-X-1.pdf
+pdf2ps .//z-jubi-tut-inflation-1.pdf
+pdf2ps .//z-jubi-tut-unrate-1.pdf
+pdf2ps .//z-jubi-tut-unrate-yoy-1.pdf
