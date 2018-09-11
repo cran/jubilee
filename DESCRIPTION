@@ -1,8 +1,8 @@
 Package: jubilee
 Type: Package
-Title: Forecast Long-Term Growth of the U.S. Stock Market
-Version: 0.2.4
-Date: 2018-09-01
+Title: Forecasting Long-Term Growth of the U.S. Stock Market
+Version: 0.2.5
+Date: 2018-09-10
 Authors@R: person(given = c("Stephen", "H-T."), family = "Lihn",
                   email = "stevelihn@gmail.com", role = c("aut", "cre"))
 Author: Stephen H-T. Lihn [aut, cre]
@@ -11,7 +11,7 @@ Description: A long-term forecast model called "Jubilee-Tectonic model" is imple
 URL: https://ssrn.com/abstract=3156574
 Depends: R (>= 3.3.0)
 Imports: stats, yaml, utils, xts, zoo, splines, parallel, graphics,
-        methods, readxl, data.table, lmtest
+        methods, readxl, data.table
 Suggests: knitr, tinytex, R.rsp, testthat, roxygen2, scales, shape
 VignetteBuilder: R.rsp
 License: Artistic-2.0
@@ -29,6 +29,6 @@ Collate: 'daily2fraction-method.R' 'fraction2daily-method.R'
         'jubilee-repo-constructor.R' 'jubilee-std-fault-line-method.R'
         'tri-wave-class.R' 'tri-wave-constructor.R' 'tri-wave-model.R'
 NeedsCompilation: no
-Packaged: 2018-09-01 19:43:03 UTC; slihn
+Packaged: 2018-09-11 19:17:24 UTC; slihn
 Repository: CRAN
-Date/Publication: 2018-09-03 11:30:06 UTC
+Date/Publication: 2018-09-11 19:40:02 UTC
