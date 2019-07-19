@@ -15,6 +15,8 @@
 #' @param daily_symbol character, the FRED symbol to read daily data that supplements 
 #'                     the monthly data. Default is \code{NULL}.
 #' @param online logical, whether to fetch online data from FRED. Default is \code{FALSE}.
+#' @param period charater, length-1 string indicating the data period of the symbol.
+#'               M is monthly, Q is quarterly. Default is \code{M}.
 #'
 #' @return The values of the symbol, numeric with the same length as \code{fraction}.
 #'
@@ -28,6 +30,7 @@
 #' @importFrom utils head
 #' @importFrom utils tail
 #' @importFrom stats na.omit
+#' @importFrom stats approxfun
 #' @importFrom data.table setkey
 #' @importFrom data.table setnames
 #' @importFrom data.table data.table
@@ -40,7 +43,7 @@
 #'
 ### <======================================================================>
 jubilee.read_fred_file <- function(fraction, local_file, symbol, 
-                                   online=FALSE, daily_symbol=NULL) {
+                                   online=FALSE, daily_symbol=NULL, period="M") {
 
     fetch_fred_to_dtb <- function(symbol) {
         ts <- jubilee.fred_data(symbol, col_out="Close.2") 
@@ -87,9 +90,25 @@ jubilee.read_fred_file <- function(fraction, local_file, symbol,
     
     df <- jubilee.df_date2fraction_pk(df)
     
+    # ---------------------------------------------------------------
+    if (period == "Q") {
+        df$fraction <- df$fraction + 1.51/12 # shift to the middle of the quarter
+        min.frac <- min(df$fraction)
+        max.frac <- max(df$fraction)
+        symbol.val <- df[, symbol, with=FALSE][[1]]
+        fn <- approxfun(df$fraction, symbol.val)
+
+        fn2 <- function(frac) {
+            if (frac >= min.frac & frac <= max.frac) return(fn(frac))
+            return(NA)
+        }
+        return(sapply(fraction, fn2))
+    }
+    
+    # ---------------------------------------------------------------
     if (is.null(fraction)) return(df) # this is mainly used as debug
     
-    # get final result 
+    # get final result for daily and monthly data
     get_value <- function(frac) {
         one.month <- 1/12+0.001
         J <- which(df$fraction <= frac & df$fraction >= frac-one.month)

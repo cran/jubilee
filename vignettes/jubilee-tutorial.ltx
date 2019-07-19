@@ -58,7 +58,8 @@
 
 \title{Jubilee: Forecasting Long-Term Growth of S\&P 500 Index }
 
-\author{by Stephen H.-T. Lihn (\email{stevelihn@gmail.com}, \texttt{v0.2.5})}
+\author{by Stephen H.-T. Lihn (\email{stevelihn@gmail.com}, \texttt{v0.2.5},
+released on Mar 31, 2019)}
 \maketitle
 
 \abstract{This tutorial shows how to use the \texttt{jubilee} package in R
@@ -109,8 +110,23 @@ are two important quantities derived from the trend-following channel
 in Section 2.3 of \citet{lihn2018}. $Y\left(t\right)$ is the difference
 between $X\left(t\right)$ and the trend-following channel moving
 average $\alpha\left(t\right)$, that is, $Y\left(t\right)=X\left(t\right)-\alpha\left(t\right)$.
-It is mean-reverting with an approximate 40-year cycle (See Figure
-\ref{fig:channel-dev-Yt} below).
+$Y\left(t\right)$ is mean-reverting with an approximate 40-year cycle
+(See Figure \ref{fig:channel-dev-Yt} below).
+
+We briefly review the concept of the trend-following channel and mean-reversion
+decomposition here. However, the reader can skip this paragraph since
+the detail here is encapsulated in the R package, and will not be
+used explicitly in this paper. Given a channel look-back period $\Delta T_{b}=45$
+years, at time $t$, we apply the causal regression $X\left(\tau\right)\sim\alpha\left(t\right)+R\left(t\right)\left(\tau-t\right),\:\mathrm{where}\:\tau\in\left[t-\Delta T_{b},t\right]$,
+to produce $\alpha\left(t\right)$ and $R\left(t\right)$, and therefore
+$Y\left(t\right)$. Using the discrete notation on $X(\tau)$ and
+$\tau$, the input data points to the regression are $\left\{ \left(X_{i}=X(\tau_{i}),\tau_{i}\right),\forall i=1\cdots N,\tau_{i}\in\left[t-\Delta T_{b},t\right]\right\} $.
+And the regression yields analytical solutions: $\alpha\left(t\right)=\left\langle X_{i}\right\rangle +\sqrt{3\left(\frac{N+1}{N}\right)}\mathrm{Cor}\left(X_{i},\tau_{i}\right)\mathrm{Stdev}\left(X_{i}\right)$;
+$R\left(t\right)=\mathrm{Cor}\left(X_{i},\tau_{i}\right)\frac{\mathrm{Stdev}\left(X_{i}\right)}{\mathrm{Stdev}\left(\tau_{i}\right)}$;
+and $Y\left(t\right)=X\left(t\right)-\left\langle X_{i}\right\rangle -\sqrt{3\left(\frac{N+1}{N}\right)}\mathrm{Cor}\left(X_{i},\tau_{i}\right)\mathrm{Stdev}\left(X_{i}\right)$.
+From the $\left\langle X_{i}\right\rangle $ term in $\alpha\left(t\right)$,
+we can see why $\alpha\left(t\right)$ resembles some kind of moving
+average.
 
 We assume the in-sample window is $t\in\left[T_{start},T_{end}\right]$
 during which period all the factors are available. Due to the forward-looking
@@ -219,7 +235,8 @@ several essential data tables:
 > repo <- jubilee.repo(online=FALSE)
 \end{Sinput}
 \begin{Soutput}
-[1] "Maximum date in ie.data is 2018.09"
+[1] "Maximum date in ie.data is 2019.07 and SPX average at 2975.95"
+[1] "Maximum date for unrate is 2019-06-16 and for GDP, 2019-02-15"
 \end{Soutput}
 \begin{Sinput}
 > ju <- jubilee(repo@ie, lookback.channel=45, fwd.rtn.duration=10)
@@ -353,23 +370,23 @@ lm(formula = eqty.logr.f10 ~ eqty.lm.y + eqty.lm.r + log.cape10.adj +
 
 Residuals:
       Min        1Q    Median        3Q       Max 
--0.109370 -0.012511 -0.000073  0.013711  0.066173 
+-0.109464 -0.012505 -0.000042  0.013734  0.066082 
 
 Coefficients:
                  Estimate Std. Error t value Pr(>|t|)    
-(Intercept)     0.4062048  0.0064726   62.76   <2e-16 ***
-eqty.lm.y      -0.0893594  0.0019176  -46.60   <2e-16 ***
-eqty.lm.r      -2.7804504  0.0597681  -46.52   <2e-16 ***
-log.cape10.adj -0.0432999  0.0008131  -53.25   <2e-16 ***
-cpi.logr.10    -0.0634538  0.0343085   -1.85   0.0646 .  
-cpi.logr.20     1.0032692  0.0444004   22.60   <2e-16 ***
+(Intercept)     0.4059518  0.0064600  62.840   <2e-16 ***
+eqty.lm.y      -0.0885792  0.0018780 -47.167   <2e-16 ***
+eqty.lm.r      -2.7815494  0.0596564 -46.626   <2e-16 ***
+log.cape10.adj -0.0432022  0.0008104 -53.310   <2e-16 ***
+cpi.logr.10    -0.0576107  0.0341383  -1.688   0.0917 .  
+cpi.logr.20     0.9964918  0.0442087  22.541   <2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-Residual standard error: 0.02046 on 1526 degrees of freedom
+Residual standard error: 0.02042 on 1536 degrees of freedom
   (121 observations deleted due to missingness)
-Multiple R-squared:  0.8128,	Adjusted R-squared:  0.8122 
-F-statistic:  1325 on 5 and 1526 DF,  p-value: < 2.2e-16
+Multiple R-squared:  0.8135,	Adjusted R-squared:  0.8129 
+F-statistic:  1340 on 5 and 1536 DF,  p-value: < 2.2e-16
 \end{Soutput}
 \end{Schunk}
 
@@ -444,6 +461,7 @@ rally, the dot-com crash, and the 2008-2009 crash and rebound.
 +      xlab="$t$", ylab="$p(t)$",
 +      main="Forecast of price index p(t) in 10y Model")
 > lines(pred.10$fraction, pred.10$tri.source, cex=0.1, col="blue")
+> abline(h=3000, col="black", lty=3)
 \end{Sinput}
 
 
@@ -477,7 +495,8 @@ parameter $\Delta T_{f}$ is set to 20 years:
 > repo <- jubilee.repo(online=FALSE)
 \end{Sinput}
 \begin{Soutput}
-[1] "Maximum date in ie.data is 2018.09"
+[1] "Maximum date in ie.data is 2019.07 and SPX average at 2975.95"
+[1] "Maximum date for unrate is 2019-06-16 and for GDP, 2019-02-15"
 \end{Soutput}
 \begin{Sinput}
 > ju <- jubilee(repo@ie, lookback.channel=45, fwd.rtn.duration=20)
@@ -528,23 +547,23 @@ lm(formula = eqty.logr.f20 ~ eqty.lm.y + eqty.lm.r + log.cape20.adj +
 
 Residuals:
       Min        1Q    Median        3Q       Max 
--0.042838 -0.007410  0.000192  0.006418  0.046108 
+-0.042841 -0.007359  0.000219  0.006398  0.046093 
 
 Coefficients:
                  Estimate Std. Error t value Pr(>|t|)    
-(Intercept)     0.0953064  0.0020617   46.23   <2e-16 ***
-eqty.lm.y      -0.0263039  0.0011191  -23.50   <2e-16 ***
-eqty.lm.r       0.3876716  0.0251795   15.40   <2e-16 ***
-log.cape20.adj -0.0248554  0.0003974  -62.55   <2e-16 ***
-cpi.logr.10     0.3252982  0.0165937   19.60   <2e-16 ***
-cpi.logr.20    -0.8880759  0.0265514  -33.45   <2e-16 ***
+(Intercept)     0.0951992  0.0020374   46.73   <2e-16 ***
+eqty.lm.y      -0.0262312  0.0011001  -23.84   <2e-16 ***
+eqty.lm.r       0.3889991  0.0248760   15.64   <2e-16 ***
+log.cape20.adj -0.0248460  0.0003953  -62.86   <2e-16 ***
+cpi.logr.10     0.3253106  0.0165312   19.68   <2e-16 ***
+cpi.logr.20    -0.8882144  0.0264468  -33.59   <2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-Residual standard error: 0.01104 on 1287 degrees of freedom
+Residual standard error: 0.011 on 1297 degrees of freedom
   (360 observations deleted due to missingness)
-Multiple R-squared:  0.8602,	Adjusted R-squared:  0.8597 
-F-statistic:  1584 on 5 and 1287 DF,  p-value: < 2.2e-16
+Multiple R-squared:  0.8617,	Adjusted R-squared:  0.8611 
+F-statistic:  1616 on 5 and 1297 DF,  p-value: < 2.2e-16
 \end{Soutput}
 \end{Schunk}
 
@@ -584,16 +603,8 @@ $X\left(t\right)$. The solid red line is the predicted path from
 the 20-year model. The dotted red line is the predicted path from
 the 10-year model. We observe that the two red lines generally agree.
 But the 20-year model produces slightly more optimistic forecast than
-the 10-year model for the next decade.
-
-We notice again that the predicted path is much smoother than the
-realized path in the in-sample period. This difference can be best
-illustrated by the lower panel of Figure \ref{fig:f20-X-forecast}.
-The blue line is the realized $Y\left(t\right)$. The solid red line
-is $Y_{pred}\left(t\right)$ from the 20-year model. Their difference
-leads us to define the next important quantity: the ``\textbf{short-horizon
-mean reversion}'' index. It will be explored in the rest of this
-paper. 
+the 10-year model for the next decade. Such optimism looks more pronounced
+in the price level foreast in the lower panel.
 
 \begin{figure}[H]
 \begin{Schunk}
@@ -606,11 +617,13 @@ paper.
 > lines(dt$fraction, dt$log.tri, cex=0.1, col="blue")
 > lines(pred.10$fraction[J20], pred.10$log.tri[J20], type="l", col="red", lty=2)
 > 
-> JY <- which(dj$fraction > 1912) 
-> plot(dj$fraction[JY], dj$eqty.lm.y[JY], type="l", col="blue",
-+      xlab="$t$", ylab="$Y(t)$",
-+      main="Predicted and realized Y(t) in 20y model")
-> lines(pred.20$fraction[JY], pred.20$eqty.lm.y[JY], col="red")
+> J20a <- which(pred.20$fraction >= 1995 & pred.20$fraction <= 2025)
+> plot(pred.20$fraction[J20a], pred.20$price[J20a], col="red", type="l", 
++      xlab="$t$", ylab="$p(t)$",
++      main="Forecast of price index p(t) in 20y Model")
+> lines(pred.10$fraction, pred.10$tri.source, cex=0.1, col="blue")
+> lines(pred.10$fraction, pred.10$price, type="l", col="red", lty=2)
+> abline(h=3000, col="black", lty=3)
 \end{Sinput}
 
 
@@ -624,12 +637,47 @@ paper.
 forecasts since 1988 in both the 10-year and 20-year models. The blue
 line is the realized $X\left(t\right)$. The solid red line is the
 predicted path from the 20-year model. The dotted red line is the
-predicted path from the 10-year model. \textbf{Lower Panel:} The blue
-line is the realized $Y\left(t\right)$, since 1912. Since $Y\left(t\right)$
-is mean-reverting, a clear historical plot can be presented.The solid
-red line is the predicted path $Y_{pred}\left(t\right)$ from the
-20-year model. The predicted path is much smoother than the realized
-path. }
+predicted path from the 10-year model. \textbf{Lower Panel:} The price-level
+$p\left(t\right)$ forecasts in both the 10-year and 20-year models. }
+
+\end{figure}
+
+We notice again that the predicted path is much smoother than the
+realized path in the in-sample period. This difference can be best
+illustrated by the $Y\left(t\right)$ plot in Figure \ref{fig:f20-Y-forecast}.
+The blue line is the realized $Y\left(t\right)$. The solid red line
+is $Y_{pred}\left(t\right)$ from the 20-year model. Their difference
+leads us to define the next important quantity: the ``\textbf{short-horizon
+mean reversion}'' index, which captures the impact from the business
+cycles. It will be explored in the rest of this paper. 
+
+\begin{figure}
+\begin{Schunk}
+\begin{Sinput}
+> par(mfcol=c(1,1)) 
+> 
+> JY <- which(dj$fraction > 1912) 
+> plot(dj$fraction[JY], dj$eqty.lm.y[JY], type="l", col="blue",
++      xlab="$t$", ylab="$Y(t)$",
++      main="Predicted and realized Y(t) in 20y model")
+> lines(pred.20$fraction[JY], pred.20$eqty.lm.y[JY], col="red")
+> lines(pred.10$fraction[JY], pred.10$eqty.lm.y[JY], col="red", lty=2)
+> rect(1937, 0.5, 1945, 0.7, col="orange") # WWII
+\end{Sinput}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-jubi-tut-forecast-20y-Y-1} 
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:f20-Y-forecast}The blue line is the realized $Y\left(t\right)$,
+since 1912. Since $Y\left(t\right)$ is mean-reverting, a clear historical
+plot can be presented. The solid red line is the predicted path $Y_{pred}\left(t\right)$
+from the 20-year model. The predicted path is much smoother than the
+realized path. As a comparison, the dotted red line is $Y_{pred}\left(t\right)$
+from the 10-year model. The orange box represents WWII.}
 
 \end{figure}
 
@@ -665,25 +713,25 @@ below:
 > mean(pred.20$log.tri.smr, na.rm=TRUE)
 \end{Sinput}
 \begin{Soutput}
-[1] -1.482351e-05
+[1] -1.456836e-05
 \end{Soutput}
 \begin{Sinput}
 > sd(pred.20$log.tri.smr, na.rm=TRUE)
 \end{Sinput}
 \begin{Soutput}
-[1] 0.2205341
+[1] 0.2197144
 \end{Soutput}
 \begin{Sinput}
 > moments::skewness(pred.20$log.tri.smr, na.rm=TRUE)
 \end{Sinput}
 \begin{Soutput}
-[1] 0.1619475
+[1] 0.1614918
 \end{Soutput}
 \begin{Sinput}
 > moments::kurtosis(pred.20$log.tri.smr, na.rm=TRUE)
 \end{Sinput}
 \begin{Soutput}
-[1] 4.278099
+[1] 4.305534
 \end{Soutput}
 \end{Schunk}
 
@@ -703,6 +751,7 @@ either over-sold or over-bought.
 > sd2 <- 2*sd(pred.20$log.tri.smr, na.rm=TRUE)
 > abline(h=sd2, col="blue", lty=2)
 > abline(h=-sd2, col="blue", lty=2)
+> rect(1937, 0.5, 1945, 0.7, col="orange") # WWII
 \end{Sinput}
 
 
@@ -714,7 +763,8 @@ either over-sold or over-bought.
 
 \caption{\label{fig:20y-smr-plot}The short-horizon mean reversion (SMR) index
 $Z_{20}\left(t\right)$, drawn in the blue line. The dotted blue lines
-are the $\pm2$-stdev of $Z_{20}\left(t\right)$. }
+are the $\pm2$-stdev of $Z_{20}\left(t\right)$. The orange box represents
+WWII.}
 
 \end{figure}
 
@@ -805,7 +855,7 @@ once the yield spread is widened large enough.
 > rate.spread.mean
 \end{Sinput}
 \begin{Soutput}
-[1] 1.468783
+[1] 1.459764
 \end{Soutput}
 \begin{Sinput}
 > J <- which(dj$fraction > 1912) 
@@ -816,6 +866,7 @@ once the yield spread is widened large enough.
 > lines(dj$fraction[J], ma(-dj$rate.spread.norm,3)[J], type="l", col="red")
 > for (t in repo@yield.inversion) { abline(v=t, lty=2, col="red") }
 > abline(h=0, col="blue", lty=2)
+> rect(1937, 0.5, 1945, 0.7, col="orange") # WWII
 \end{Sinput}
 
 
@@ -829,7 +880,8 @@ once the yield spread is widened large enough.
 (red line) with $Z_{20}\left(t\right)$ (blue line). The vertical
 dotted red lines are the locations of maximum yield spread inversion
 in each business cycle. Here $\widehat{YS}\left(t\right)$ is smoothed
-by 3-month moving average to make it less noisy in the plot. }
+by 3-month moving average to make it less noisy in the plot. The orange
+box represents WWII.}
 
 \end{figure}
 
@@ -882,11 +934,13 @@ end of the century.
 > plot(pred.20$fraction[J], pred.20$log.tri.smr[J], type="l", lwd=1, col="blue", 
 +      ylab="$Z_{20}(t)$", xlab="$t$",
 +      main="Uncertainty principle: Z(t) and inverse of GS10 (GSI)") 
+> rect(1937, 0.8, 1945, 0.95, col="orange") # WWII
 > lines(dj$fraction[J], ma(-dj$rate.spread.norm,3)[J], type="l", col="red")
 > abline(h=0, col="blue", lty=2)
 > GSI <- dj$rate.gs10.modinv
 > lines(dj$fraction[J]-74/12, ma(GSI,24)[J], col="purple", lty=2, lwd=2) 
 > lines(dj$fraction[J]-74/12, -ma(GSI,24)[J], col="purple", lty=2, lwd=2)
+> lines(dj$fraction[J], GSI[J], col="purple", lty=3, lwd=1)
 \end{Sinput}
 
 
@@ -896,13 +950,13 @@ end of the century.
 
 \end{Schunk}
 
-\caption{\label{fig:20y-smr-gsi-plot}Overlay of the modified inverse of 10-year
-yield $GSI\left(t+74/12\right)$ with $Z_{20}\left(t\right)$ (the
-blue line). The 74-month shift is the equity market's lead time over
-Treasury market. We draw $\pm GSI\left(t\right)$ in purple dotted
-lines to form an envelope, and we smooth $GSI\left(t\right)$ by its
-24-month moving average to remove the noise. The red line is the yield
-spread.}
+\caption{\label{fig:20y-smr-gsi-plot}Overlay of $GSI\left(t+74/12\right)$
+with $Z_{20}\left(t\right)$ (the blue line). The 74-month shift is
+the equity market's lead time over Treasury market. We draw $\pm GSI\left(t+74/12\right)$
+in thick purple dotted lines to form an envelope, which are smoothed
+by 24-month moving average to remove the noise. The red line is the
+yield spread. We draw $GSI\left(t\right)$ in thin purple dotted line
+to indicate where inversion occurs. The orange box represents WWII.}
 
 \end{figure}
 
@@ -934,7 +988,7 @@ This regression is shown below:
 
 \begin{Schunk}
 \begin{Sinput}
-> J <- which (dt$fraction >= 1950)
+> J <- which (dt$fraction >= 1950 & dt$fraction <= 2019)
 > a <- lm(unrate ~ rate.gs10 + rate.gs10.modinv + rate.spread.norm, data=dj[J]) 
 > summary(a)
 \end{Sinput}
@@ -946,21 +1000,20 @@ lm(formula = unrate ~ rate.gs10 + rate.gs10.modinv + rate.spread.norm,
 
 Residuals:
     Min      1Q  Median      3Q     Max 
--1.9937 -0.8231 -0.0182  0.6920  3.2624 
+-1.9918 -0.8227 -0.0183  0.6844  3.2611 
 
 Coefficients:
                  Estimate Std. Error t value Pr(>|t|)    
-(Intercept)       2.33933    0.26196   8.930   <2e-16 ***
-rate.gs10         0.40507    0.02413  16.788   <2e-16 ***
-rate.gs10.modinv  3.37924    0.39732   8.505   <2e-16 ***
-rate.spread.norm  4.74025    0.16547  28.647   <2e-16 ***
+(Intercept)       2.33592    0.26146   8.934   <2e-16 ***
+rate.gs10         0.40549    0.02408  16.839   <2e-16 ***
+rate.gs10.modinv  3.36908    0.39905   8.443   <2e-16 ***
+rate.spread.norm  4.74594    0.16454  28.843   <2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-Residual standard error: 1.03 on 820 degrees of freedom
-  (1 observation deleted due to missingness)
-Multiple R-squared:  0.6059,	Adjusted R-squared:  0.6045 
-F-statistic: 420.3 on 3 and 820 DF,  p-value: < 2.2e-16
+Residual standard error: 1.028 on 824 degrees of freedom
+Multiple R-squared:  0.6084,	Adjusted R-squared:  0.607 
+F-statistic: 426.8 on 3 and 824 DF,  p-value: < 2.2e-16
 \end{Soutput}
 \end{Schunk}
 
@@ -977,11 +1030,11 @@ on $GS_{10}\left(t\right)$ such as
 \label{eq:unrate-reg2}
 \end{equation}
 
-Figure \ref{fig:unrate} shows the result of this regression. At each
-peak of a business cycle when $YS\left(t\right)\approx0$, we have
-$GS_{3m}\left(t\right)\approx GS_{10}\left(t\right)$ and $\widehat{YS}\left(t\right)\approx-GSI\left(t\right)$.
-Then the lowest unemployment rate at that moment can be estimated
-by
+Figure \ref{fig:unrate} shows the result of this regression. $UNRATE\left(t\right)$
+is the blue line and the regression is the red line. At each peak
+of a business cycle when $YS\left(t\right)\approx0$, we have $GS_{3m}\left(t\right)\approx GS_{10}\left(t\right)$
+and $\widehat{YS}\left(t\right)\approx-GSI\left(t\right)$. Then the
+lowest unemployment rate at that moment can be estimated by
 
 \begin{equation}
 \begin{aligned}UNRATE_{min}\left(t\right) & \equiv\beta_{0}+\beta_{1}GS_{10}\left(t\right)+\left(\beta_{2}-\beta_{3}\right)\frac{\left\langle YS\left(t\right)\right\rangle }{GS_{10}\left(t\right)}.\\
@@ -990,7 +1043,7 @@ by
 \label{eq:unrate-min}
 \end{equation}
 Notice that $UNRATE_{min}\left(t\right)$ depends on $GS_{10}\left(t\right)$
-alone! We observe in Figure \ref{fig:unrate} that $UNRATE_{min}\left(t\right)$
+alone. We observe in Figure \ref{fig:unrate} that $UNRATE_{min}\left(t\right)$
 matches the lowest unemployment rate in each cycle peak quite well
 (with 1970 as a major exception). It provides a lower bound on the
 unemployment rate. 
@@ -1015,7 +1068,7 @@ stays below 3\%, the minimum unemployment rate can go as low as 3\%.
 +      main=sprintf("Unemployment rate as alternative high-yield bond"))
 > lines(dj$fraction[J], predict(a, newdata=dj[J]), col="red")
 > ac <- a$coefficients
-> unrate.min <- ac[1]+ac[2]*dj$rate.gs10+(ac[3]-ac[4])*GSI
+> unrate.min <- ac[1]+ac[2]*dj$rate.gs10+(ac[3]-ac[4])*dj$rate.gs10.modinv
 > lines(dj$fraction[J], ma(unrate.min,3)[J], col="black", lwd=2, lty=3) 
 > for (t in repo@yield.inversion) { abline(v=t, lty=2, col="red") }
 \end{Sinput}
@@ -1180,8 +1233,8 @@ market?
 
 \section{Acknowledgement}
 
-I thank Professor John Mulvey for his guidance and discussions for
-the series of works that lead to this R package. 
+I thank Professor John Mulvey at Princeton University for his guidance
+and discussions for the series of works that lead to this R package. 
 \begin{thebibliography}{Campbell and Shiller(1988)}
 \bibitem[Campbell and Shiller(1988)]{shiller1988}Campbell, John Y.,
 and Robert J. Shiller (1988). \textit{Stock Prices, Earnings, and

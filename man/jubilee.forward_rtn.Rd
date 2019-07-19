@@ -3,7 +3,7 @@
 \name{jubilee.forward_rtn}
 \alias{jubilee.forward_rtn}
 \alias{jubilee.backward_rtn}
-\title{Internal utility to calculate annualized forward and backward return}
+\title{Internal utility to calculate annualized forward and backward (log) return}
 \usage{
 jubilee.forward_rtn(fraction, ts, fwd.rtn.duration, tol.frac = 1/12)
 
@@ -12,11 +12,12 @@ jubilee.backward_rtn(fraction, ts, bwd.rtn.duration, tol.frac = 1/12)
 \arguments{
 \item{fraction}{numeric, the ending fraction of regression}
 
-\item{ts}{numeric, the time series data}
+\item{ts}{numeric, the time series data, typically in log-scale}
 
 \item{fwd.rtn.duration}{numeric, the forward-looking regression period}
 
-\item{tol.frac}{numeric, tolerance of missing data in the beginning, expressed as fraction.
+\item{tol.frac}{numeric, tolerance of missing data in the beginning of backward return,
+or the ending of the forward return, expressed as fraction.
 Default is 1/12, that is, one month.}
 
 \item{bwd.rtn.duration}{numeric, the backward-looking regression period}
@@ -25,17 +26,19 @@ Default is 1/12, that is, one month.}
 numeric, the same length as \code{fraction}
 }
 \description{
-Calculate the annualized forward and backward return on the given time series.
+These two internal utilities are intended to be used to calculate the annualized
+forward and backward log-return on the given time series. It is really calculating
+the speed of change, aka log-return, expecting the input to be in logrithmic scale.
 The forward return is typically the response variable in a forecast.
 The backward return is often used as explanatory variable in a regression.
 }
 \examples{
 \dontrun{
   dtb <- jubilee.repo(online=FALSE)@ie
-  dtb$fwd.rtn.10 <- jubilee.forward_rtn(dtb$fraction, dtb$log.tri, 10)
-  dtb$bwd.rtn.10 <- jubilee.backward_rtn(dtb$fraction, dtb$log.tri, 10)
-  head(subset(dtb, fraction >= 1990),1)$fwd.rtn.10 # 1/1990+10y: 0.16745
-  tail(subset(dtb, fraction <= 2000+1/12),1)$bwd.rtn.10 # the same as above
+  dtb$fwd.logr.10 <- jubilee.forward_rtn(dtb$fraction, dtb$log.tri, 10)
+  dtb$bwd.logr.10 <- jubilee.backward_rtn(dtb$fraction, dtb$log.tri, 10)
+  head(subset(dtb, fraction >= 1990),1)$fwd.logr.10 # 1/1990+10y: 0.16745
+  tail(subset(dtb, fraction <= 2000+1/12),1)$bwd.logr.10 # the same as above
 }
 }
 \author{

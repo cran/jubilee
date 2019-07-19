@@ -5,7 +5,7 @@
 \title{Internal utility to read FRED file}
 \usage{
 jubilee.read_fred_file(fraction, local_file, symbol, online = FALSE,
-  daily_symbol = NULL)
+  daily_symbol = NULL, period = "M")
 }
 \arguments{
 \item{fraction}{numeric, the fraction to return the value. 
@@ -24,6 +24,9 @@ instead of a local file.}
 
 \item{daily_symbol}{character, the FRED symbol to read daily data that supplements 
 the monthly data. Default is \code{NULL}.}
+
+\item{period}{charater, length-1 string indicating the data period of the symbol.
+M is monthly, Q is quarterly. Default is \code{M}.}
 }
 \value{
 The values of the symbol, numeric with the same length as \code{fraction}.

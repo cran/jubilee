@@ -4,7 +4,8 @@
 \alias{jubilee}
 \title{Constructor of the jubilee class}
 \usage{
-jubilee(dtb, lookback.channel = 45, fwd.rtn.duration = 20)
+jubilee(dtb, lookback.channel = 45, fwd.rtn.duration = 20,
+  force = TRUE)
 }
 \arguments{
 \item{dtb}{data.table from the \code{jubilee.repo} object, typically it is the \code{ie} slot.
@@ -14,6 +15,8 @@ as long as the column names are compliant.}
 \item{lookback.channel}{numeric, look-back channel in years to calculate mean-reversion. Default is 45.}
 
 \item{fwd.rtn.duration}{numeric, forward return duration in years. Default is 20.}
+
+\item{force}{logical, if FALSE, allowed to retrieve previous object stored in option. Default is \code{TRUE}.}
 }
 \value{
 an object of the jubilee class

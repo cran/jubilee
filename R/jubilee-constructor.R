@@ -9,6 +9,7 @@
 #'            as long as the column names are compliant.
 #' @param lookback.channel numeric, look-back channel in years to calculate mean-reversion. Default is 45.
 #' @param fwd.rtn.duration numeric, forward return duration in years. Default is 20.
+#' @param force logical, if FALSE, allowed to retrieve previous object stored in option. Default is \code{TRUE}.
 #'
 #' @return an object of the jubilee class
 #'
@@ -19,6 +20,7 @@
 #' @export
 #'
 #' @importFrom data.table setkey
+#' @importFrom data.table setattr
 #' @importFrom data.table data.table
 #' @importFrom data.table shift
 #'
@@ -29,22 +31,46 @@
 #' }
 #'
 ### <======================================================================>
-"jubilee" <- function(dtb, lookback.channel=45, fwd.rtn.duration=20)
+"jubilee" <- function(dtb, lookback.channel=45, fwd.rtn.duration=20, force=TRUE)
 {
+    d <- getOption("jubilee.object")
+    if (! is.null(d)) {
+        # if the two input parameters are not the same, nullify the stored object
+        if (d@lookback.channel != lookback.channel | d@fwd.rtn.duration != fwd.rtn.duration) d <- NULL
+    }
+    if (!(is.null(d) | force)) return(d)
+    
+    # ---------------------------------------------------------------------------------
     jubilee.assert_column(dtb, c("log.tri", "cape10"))
     # ---------------------------------------------------------------------------------
+    dtb$deflator <- dtb$gdp/dtb$real.gdp * 100
     dtb$cape20 <- jubilee.calc_cape(dtb, period=20)
-    reg.dtb <- data.table(fraction=dtb$fraction,
+    
+    reg.dtb <- data.table(epoch=dtb$epoch,
+                          fraction=dtb$fraction,
                           log.tri=dtb$log.tri,
                           real.log.tri=dtb$real.log.tri,
                           cape10=dtb$cape10,
                           cape20=dtb$cape20,
                           rate.gs10=dtb$rate.gs10,
                           rate.tb3ms=dtb$rate.tb3ms,
-                          unrate=dtb$unrate)
+                          rate.ed3ms=dtb$rate.ed3ms,
+                          rate.fedfunds=dtb$rate.fedfunds,
+                          unrate=dtb$unrate,
+                          tcu=dtb$tcu,
+                          gdp=dtb$gdp,
+                          real.gdp=dtb$real.gdp,
+                          deflator=dtb$deflator,
+                          payroll=dtb$payroll,
+                          cp=dtb$cp,
+                          usrec.nber=dtb$usrec.nber,
+                          usrec.cp=dtb$usrec.cp
+                        )
+
     fraction <- NULL
     data.table::setkey(reg.dtb, fraction)
 
+    # yield spread related
     reg.dtb$rate.spread <- dtb$rate.gs10-dtb$rate.tb3ms
     reg.dtb$rate.spread.lag12 <- data.table::shift(reg.dtb$rate.spread, n=12, type="lag")
     reg.dtb$rate.spread.lag24 <- data.table::shift(reg.dtb$rate.spread, n=24, type="lag")
@@ -88,7 +114,12 @@
     reg.dtb$eqty.real.logr.fwd  <- jubilee.forward_rtn(dtb$fraction, dtb$real.log.tri, fwd.rtn.duration)
     reg.dtb$eqty.real.logr.fwd2 <- jubilee.forward_rtn(dtb$fraction, dtb$real.log.tri, fwd.rtn.duration/2) # half of forward period
 
-    reg.dtb$eqty.logr.f3 <- jubilee.forward_rtn(dtb$fraction, dtb$log.tri, 3) # 3-year return, short-term
+    reg.dtb$eqty.logr.6m <- jubilee.backward_rtn(dtb$fraction, dtb$log.tri, 0.5) # 6M bwd return, short-term
+    reg.dtb$eqty.logr.1 <- jubilee.backward_rtn(dtb$fraction, dtb$log.tri, 1) # 1-year bwd return, short-term
+    reg.dtb$eqty.logr.f1 <- jubilee.forward_rtn(dtb$fraction, dtb$log.tri, 1) # 1-year fwd return, short-term
+    reg.dtb$eqty.logr.f3 <- jubilee.forward_rtn(dtb$fraction, dtb$log.tri, 3) # 3-year fwd return, short-term
+
+    reg.dtb$eqty.logr.1.6m <- jubilee.backward_rtn(reg.dtb$fraction, reg.dtb$eqty.logr.1, 0.5) # 6m acceleration of 1y bwd return
 
     reg.dtb$eqty.logr.f10 <- jubilee.forward_rtn(dtb$fraction, dtb$log.tri, 10)
     reg.dtb$eqty.logr.f20 <- jubilee.forward_rtn(dtb$fraction, dtb$log.tri, 20)
@@ -100,8 +131,36 @@
     reg.dtb$gold.real.logr.f10 <- jubilee.forward_rtn(reg.dtb$fraction, reg.dtb$gold.real.logp, 10)
     reg.dtb$gold.real.logr.f20 <- jubilee.forward_rtn(reg.dtb$fraction, reg.dtb$gold.real.logp, 20)
 
-    reg.dtb$unrate.rtn.1  <- jubilee.backward_rtn(dtb$fraction, dtb$unrate, 1)  # one-year difference of unrate
+    reg.dtb$unrate.diff.1  <- jubilee.backward_rtn(dtb$fraction, dtb$unrate, 1)  # one-year difference of unrate
     reg.dtb$unrate.logr.1  <- jubilee.backward_rtn(dtb$fraction, log(dtb$unrate), 1) # one-year log-return
+    reg.dtb$unrate.logr.6m  <- jubilee.backward_rtn(dtb$fraction, log(dtb$unrate), 0.5) # 6m log-return
+
+    reg.dtb$unrate.logr.1.6m  <- jubilee.backward_rtn(reg.dtb$fraction, reg.dtb$unrate.logr.1, 0.5) # 6m acceleration of 1y momentum
+
+    reg.dtb$payroll.nom.logr.1  <- jubilee.backward_rtn(dtb$fraction, log(dtb$payroll), 1) # one-year log-return
+
+    # Sahm unemployment index
+    unrate_get_dtb1 <- function(frac) {
+        eps <- 5/365
+        J <- which(reg.dtb$fraction <= frac + eps & reg.dtb$fraction >= frac - 12*1/12 - eps)
+        reg.dtb[J, c("fraction", "unrate")]
+    }
+    
+    unrate_sahm_3m <- function(frac) {
+        df1 <- unrate_get_dtb1(frac)
+        mean(tail(df1,3)$unrate)
+    }
+    unrate_sahm_12m <- function(frac) {
+        df1 <- unrate_get_dtb1(frac)
+        min(tail(df1,12)$unrate)
+    }
+    
+    reg.dtb$unrate.3m_avg <- sapply(reg.dtb$fraction, unrate_sahm_3m)
+    reg.dtb$unrate.12m_min <- sapply(reg.dtb$fraction, unrate_sahm_12m)
+    reg.dtb$unrate.sahm_idx <- reg.dtb$unrate.3m_avg - reg.dtb$unrate.12m_min
+    
+    # rate.spread.mean
+    setattr(reg.dtb, "rate.spread.mean", rate.spread.mean)
 
     call <- match.call()
     d <- new("jubilee",
@@ -114,6 +173,7 @@
              create.time = Sys.time()
             )
 
+    options("jubilee.object"=d)
     invisible(d)
 }
 ### <---------------------------------------------------------------------->

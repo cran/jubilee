@@ -21,6 +21,7 @@
 #' @importFrom utils head
 #' @importFrom utils tail
 #' @importFrom stats na.omit
+#' @importFrom stats lm
 #' @importFrom readxl read_excel
 #' @importFrom data.table setkey
 #' @importFrom data.table setnames
@@ -71,8 +72,11 @@
     raw.ie <- data.table::data.table(raw.ie)
     data.table::setnames(raw.ie, "Rate GS10", "Rate.GS10")
     raw.ie <- stats::na.omit(raw.ie, cols="Date")
+    
+    max_date <- tail(raw.ie$Date,1)
+    max_spx <- tail(raw.ie$Price,1)
 
-    print(sprintf("Maximum date in ie.data is %.2f", max(raw.ie$Date,na.rm=TRUE)))
+    print(sprintf("Maximum date in ie.data is %.2f and SPX average at %.2f", max_date, max_spx))
     
     # -------------------------------------------------------
     # column type validation and conversion
@@ -126,19 +130,98 @@
 
     # -------------------------------------------------------
     # read unemployment rate (unrate) from the monthly files
-    cm <- conf$monthly.fred$unrate
-    ie[, c(cm$dtb_colname)] <- jubilee.read_fred_file(ie$fraction, cm$file, cm$symbol, online=online, daily_symbol=cm$daily_symbol)
 
+    read_fred_by_config <- function(cm) {
+        jubilee.read_fred_file(ie$fraction, cm$file, cm$symbol, online=online,
+                               daily_symbol=cm$daily_symbol, period=cm$period)
+    }
+
+    cm <- conf$monthly.fred$unrate
+    ie[, c(cm$dtb_colname)] <- jubilee.read_fred_file(ie$fraction, cm$file, cm$symbol, online=online, daily_symbol=cm$daily_symbol, period=cm$period)
+
+    # -------------------------------------------------------
+    # read TCU, total capacity utilization
+    cm <- conf$monthly.fred$tcu
+    ie[, c(cm$dtb_colname)] <- read_fred_by_config(cm)
+    
+    # add manufacturing capacity utilization before 01/1967, to align with GDP data
+    old_tcu <- data.table(fraction=ie$fraction)
+    old_tcu$tcu <- jubilee.read_fred_file(ie$fraction, "CAPUTLB00004SQ.csv", "CAPUTLB00004SQ", period="Q")
+    ie$tcu <- ifelse(is.finite(ie$tcu) & ie$fraction > 1967, ie$tcu, old_tcu$tcu)
+    
     # -------------------------------------------------------
     # read BAA from the monthly files
     cm <- conf$monthly.fred$rate.baa
-    ie[, c(cm$dtb_colname)] <- jubilee.read_fred_file(ie$fraction, cm$file, cm$symbol, online=online, daily_symbol=cm$daily_symbol)
+    ie[, c(cm$dtb_colname)] <- jubilee.read_fred_file(ie$fraction, cm$file, cm$symbol, online=online, daily_symbol=cm$daily_symbol, period=cm$period)
 
     # -------------------------------------------------------
-    yield.inversion = c(
-        1920.75, 1929.5, # 1953.25,
-        1957.1, 1960, 1966.5, 1969.5, 1973.75,
-        1980, 1981, 1989.5, 2001, 2007)
+    # read Eurodollar 3m rate from the monthly files
+    cm <- conf$monthly.fred$rate.ed3ms
+    ie[, c(cm$dtb_colname)] <- jubilee.read_fred_file(ie$fraction, cm$file, cm$symbol, online=online, daily_symbol=cm$daily_symbol, period=cm$period)
+
+    # -------------------------------------------------------
+    # read FED FUNDS rate from the monthly files
+    cm <- conf$monthly.fred$rate.fedfunds
+    ie[, c(cm$dtb_colname)] <- jubilee.read_fred_file(ie$fraction, cm$file, cm$symbol, online=online, daily_symbol=cm$daily_symbol, period=cm$period)
+
+    # read GDP data
+    cm <- conf$monthly.fred$gdp
+    ie[, c(cm$dtb_colname)] <- jubilee.read_fred_file(ie$fraction, cm$file, cm$symbol, online=online, daily_symbol=cm$daily_symbol, period=cm$period)
+
+    cm <- conf$monthly.fred$real.gdp
+    ie[, c(cm$dtb_colname)] <- jubilee.read_fred_file(ie$fraction, cm$file, cm$symbol, online=online, daily_symbol=cm$daily_symbol, period=cm$period)
+
+    # corporate profit
+    cm <- conf$monthly.fred$cp
+    ie[, c(cm$dtb_colname)] <- jubilee.read_fred_file(ie$fraction, cm$file, cm$symbol, online=online, daily_symbol=cm$daily_symbol, period=cm$period)
+
+    # to extrapolate GDP here, INACTIVE: not sure if we want to make assumption
+    extrapolate_quarterly <- function(frac, df) {
+        N <- 3 # data points to extrapolate
+        col.val <- df[, col, with=FALSE][[1]]
+        J <- which(! is.na(col.val))
+        max.frac <- max(df[J]$fraction)
+        df.N <- data.frame(t=tail(df[J]$fraction, N), y=tail(col.val[J], N))
+        exp.lm <- lm(y ~ t, data=df.N)
+        if (frac > max.frac) return(predict(exp.lm, newdata=data.frame(t=frac)))
+        return(NA)
+    }
+
+    # -------------------------------------------------------
+    # read payroll data
+    cm <- conf$monthly.fred$payroll
+    ie[, c(cm$dtb_colname)] <- read_fred_by_config(cm)
+
+    # add manufacturing data before 01/1964, to align with GDP data
+    old_payroll <- data.table(fraction=ie$fraction)
+    old_payroll$payroll <- jubilee.read_fred_file(
+        ie$fraction, "CES3000000035.csv", "CES3000000035", period="M")
+    old_scale <- 8.5/17.4 # conversion scale, hardcoded, as of 1964/01
+    ie$payroll <- ifelse(is.finite(ie$payroll) & ie$fraction > 1964,
+        ie$payroll, old_payroll$payroll*old_scale)
+
+    # -------------------------------------------------------
+    # read POPTH, population
+    cm <- conf$monthly.fred$popth
+    ie[, c(cm$dtb_colname)] <- read_fred_by_config(cm)
+
+    # add quarterly data before 01/1959
+    old_popth <- data.table(fraction=ie$fraction)
+    old_popth$popth <- jubilee.read_fred_file(ie$fraction, "B230RC0Q173SBEA.csv", "B230RC0Q173SBEA", period="Q")
+    ie$popth <- ifelse(is.finite(ie$popth) & ie$fraction > 1959, ie$popth, old_popth$popth)
+
+    # recession data
+    cm <- conf$monthly.fred$usrec.nber
+    ie[, c(cm$dtb_colname)] <- read_fred_by_config(cm)
+    
+    cm <- conf$monthly.fred$usrec.cp
+    ie[, c(cm$dtb_colname)] <- read_fred_by_config(cm)
+
+    # -------------------------------------------------------
+    gdp_date <- fraction2daily(max(ie[is.finite(ie$real.gdp)]$fraction))
+    unrate_date <- fraction2daily(max(ie[is.finite(ie$unrate)]$fraction))
+
+    print(sprintf("Maximum date for unrate is %s and for GDP, %s", unrate_date, gdp_date))
 
     # -------------------------------------------------------
     # store in the class object
@@ -146,7 +229,7 @@
             call = call,
             ie = ie,
             ws = ws,
-            yield.inversion = yield.inversion,
+            yield.inversion = jubilee.yield_inversion(),
             raw.ie = data.table(raw.ie),
             inflation = data.table(inflation),
             comm.int = data.table(comm.int),
