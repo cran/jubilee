@@ -7,6 +7,8 @@
 #' Federal Reserve FRED website if the R session has connection to the internet.
 #'
 #' @param online logical, indicating whether to fetch data from online resource or not. Default is \code{TRUE}.
+#' @param force logical, if FALSE, allowed to retrieve previous object stored in option.
+#'              The FALSE setting overrides the online=TRUE setting. Default is \code{TRUE}.
 #'
 #' @return An object of \code{jubilee.repo} class
 #'
@@ -27,16 +29,29 @@
 #' @importFrom data.table setnames
 #' @importFrom data.table data.table
 #' @importFrom data.table shift
+#' @importFrom data.table as.data.table
 #' @importFrom zoo index
+#' @importFrom zoo yearmon
+#' @importFrom dplyr group_by
+#' @importFrom dplyr summarize
+#' @importFrom dplyr %>%
 #'
 #' @examples
+#' \dontrun{
 #'   repo <- jubilee.repo(online=FALSE)
 #'   dtb <- repo@ie
 #'   tail(dtb,1)
+#' }
 #'
 ### <======================================================================>
-"jubilee.repo" <- function(online=TRUE)
+"jubilee.repo" <- function(online=TRUE, force=TRUE)
 {
+    if (! force) {
+        r <- getOption("jubilee.repo.object")
+        if (! is.null(r)) return(r)
+    }
+    # -------------------------------------------------------
+
     call <- match.call()
     conf <- jubilee.repo.config()
     
@@ -68,20 +83,31 @@
     
     if (!(length(file) > 0 & file.exists(file))) stop(paste("Failed to locate file:",file))
     options(stringsAsFactors = FALSE)
-    raw.ie <- suppressWarnings(readxl::read_excel(file, sheet=3, skip=7, col_types="numeric"))
+    raw.ie <- suppressMessages(suppressWarnings(
+        readxl::read_excel(file, sheet="Data", skip=7, col_types="numeric", progress=FALSE)
+        ))
+    # message(colnames(raw.ie))
     raw.ie <- data.table::data.table(raw.ie)
+    # message(colnames(raw.ie))
     data.table::setnames(raw.ie, "Rate GS10", "Rate.GS10")
     raw.ie <- stats::na.omit(raw.ie, cols="Date")
     
-    max_date <- tail(raw.ie$Date,1)
-    max_spx <- tail(raw.ie$Price,1)
-
-    print(sprintf("Maximum date in ie.data is %.2f and SPX average at %.2f", max_date, max_spx))
+    max_date <- tail(na.omit(raw.ie$Date),1)
+    max_spx <- tail(na.omit(raw.ie$P),1)
+    message(sprintf("Maximum date in raw ie.data is %.2f and SPX average at %.2f", max_date, max_spx))
     
     # -------------------------------------------------------
     # column type validation and conversion
     ws <- .enrich_ws_data(ws, inflation)
-    ie <- .enrich_ie_data(raw.ie, ws)
+
+    # -------------------------------------------------------
+    ie <- .enrich_ie_data(raw.ie, ws, online)
+
+    if (online) {
+        max_date2 <- tail(ie$date,1)
+        max_spx2 <- tail(ie$price,1)
+        message(sprintf("Maximum date in enriched ie is %.2f and SPX average at %.2f", max_date2, max_spx2))
+    }
     
     # -------------------------------------------------------
     # read TB3MS, Treasury Bill 3m interest rate
@@ -109,6 +135,23 @@
         ie[I,]$rate.tb3ms <- ie[J,]$rate.tb3ms
     }
 
+    # -------------------------------------------------------
+    # read GS10, Treasury Bill 10y interest rate
+    gs10c <- conf$monthly.fred$rate.gs10
+    gs10_ts <- jubilee.read_fred_file(ie$fraction, gs10c$file, gs10c$symbol, online=online, daily_symbol=gs10c$daily_symbol)
+    gs10 <- data.table(fraction = ie$fraction, Close = gs10_ts)
+
+    # append GS10 to ie
+    get_10y_rate <- function(frac) {
+        one.month <- 1/12+0.001
+        J <- which(ie$fraction == frac)
+        if (length(J) > 0 & is.finite(ie$rate.gs10[J])) return(ie$rate.gs10[J])
+        J <- which(gs10$fraction <= frac & gs10$fraction >= frac-one.month)
+        if (length(J) > 0) return(gs10$Close[max(J)])
+        return(NA)
+    }
+    ie[, c(gs10c$dtb_colname)] <- sapply(ie$fraction, get_10y_rate)
+    
     # -------------------------------------------------------
     # read Gold prices from the monthly and annual files
     gc <- conf$gold
@@ -218,10 +261,28 @@
     ie[, c(cm$dtb_colname)] <- read_fred_by_config(cm)
 
     # -------------------------------------------------------
+    # calculate GS10 logr.1m and log.tri
+    gs10_mth_ttl_logrtn <- function(frac) {
+        J <- which(ie$fraction == frac)
+        y_t1 <- ie[J-1]$rate.gs10/100
+        y_t <- ie[J]$rate.gs10/100
+        m_t <- 10 # 10 years
+        # duration, p.148 of Tuckerman; convexity, p. 150 of Tuckerman
+        duration <- 1/y_t*(1-1/(1+0.5*y_t)^(2*m_t))
+        convexity <- 2/y_t^2*(1-1/(1+0.5*y_t)^(2*m_t)) - (2*m_t)/(y_t*(1+0.5*y_t)^(2*m_t+1))
+        rtn.1m <- y_t1/12 -duration*(y_t-y_t1) +convexity/2*(y_t-y_t1)^2
+        log(1+rtn.1m)
+    }
+    K <- which(is.finite(ie$rate.gs10))
+    ie$rate.gs10.logr.1m <- as.numeric(jubilee.mcsapply(ie$fraction, gs10_mth_ttl_logrtn))
+    ie$rate.gs10.logr.1m[K[1]] <- 0
+    ie$rate.gs10.log.tri[K] <- cumsum(ie$rate.gs10.logr.1m[K]) 
+
+    # -------------------------------------------------------
     gdp_date <- fraction2daily(max(ie[is.finite(ie$real.gdp)]$fraction))
     unrate_date <- fraction2daily(max(ie[is.finite(ie$unrate)]$fraction))
 
-    print(sprintf("Maximum date for unrate is %s and for GDP, %s", unrate_date, gdp_date))
+    message(sprintf("Maximum date for unrate is %s and for GDP, %s", unrate_date, gdp_date))
 
     # -------------------------------------------------------
     # store in the class object
@@ -239,6 +300,7 @@
             create.time = Sys.time()
     )
 
+    options("jubilee.repo.object"=r)
     invisible(r)
 }
 ### <---------------------------------------------------------------------->
@@ -282,16 +344,21 @@
     return(df1) # return the new ws table
 }
 ### <---------------------------------------------------------------------->
-.enrich_ie_data <- function(raw.ie, ws) {
+.R_Date2date <- function(d) {
+    d2 <- as.numeric(zoo::as.yearmon(d))
+    floor(d2) + ((d2 %% 1) * 12 + 1)/100 # YYYY.MM
+}
+.date2epoch <- function(d) (floor(d)-1800)*12+((d*100) %% 100)-1  # input: YYYY.MM
+.R_Date2epoch <- function(d) .date2epoch(.R_Date2date(d))
+### <---------------------------------------------------------------------->
+.enrich_ie_data <- function(raw.ie, ws, online) {
     
-    date2epoch <- function(d) (floor(d)-1800)*12+((d*100) %% 100)-1
-    
-    raw.ie$epoch <- date2epoch(raw.ie$Date)
+    raw.ie$epoch <- .date2epoch(raw.ie$Date)
     epoch <- NULL # for R CMD check
     data.table::setkey(raw.ie, epoch)
     
-    ci <- which(colnames(raw.ie)==c("Date","Fraction"))
-    colnames(raw.ie)[ci] <- c("date","fraction")
+    data.table::setnames(raw.ie, "Date", "date")
+    data.table::setnames(raw.ie, "Fraction", "fraction")
     ie <- merge(raw.ie, ws, all=TRUE)
 
     # combine date and fraction columns
@@ -304,32 +371,51 @@
     ie$date.y = NULL
     ie$fraction.y = NULL
 
+    rename.debug = FALSE
     rename.col <- function(c.from, c.to) {
         ci <- which(colnames(ie)==c.from)
-        stopifnot(length(ci)==1)
+        if (rename.debug) {
+            message(ci)
+            message(c(c.from, c.to))
+            message(colnames(ie)[ci])
+        }
+        if (length(ci) != 1) stop(sprintf("ERROR: Unable to rename from %s to %s", c.from, c.to))
         colnames(ie)[ci] <<- c.to
     }
     
     # rename a few columns to make them clear
+    rename.col("Price...8", "real.price")
+    rename.col("Dividend", "real.dividend")
+    rename.col("Earnings...11", "real.earnings")
     rename.col("P", "price")
     rename.col("D", "dividend")
     rename.col("E", "earnings")
-    rename.col("Price", "real.price")
-    rename.col("Dividend", "real.dividend")
-    rename.col("Earnings", "real.earnings")
     rename.col("CPI", "cpi")
     rename.col("CAPE", "cape10")
     rename.col("Rate.GS10", "rate.gs10")
     
-    # patch NA dividend and earning cells in the recent months so that log.tri won't be NA
+    # if online, add SP500 from FRED to current month
+    if (online) {
+        ie <- .append_sp500_from_fred(ie)
+    }
+
+    # patch NA dividend, earning, CPI cells in the recent months so that log.tri won't be NA
     max.frac <- max(ie$fraction)
-    I <- which(ie$fraction > max.frac-1 & is.na(ie$dividend))
-    J <- max(which(ie$fraction > max.frac-1 & !is.na(ie$dividend)))
-    ie$dividend[I] <- ie$dividend[J]
     
-    I <- which(ie$fraction > max.frac-1 & is.na(ie$earnings))
-    J <- max(which(ie$fraction > max.frac-1 & !is.na(ie$earnings)))
-    ie$earnings[I] <- ie$earnings[J]
+    patch_ie_col <- function(col) {
+        I <- which(ie$fraction > max.frac-1 & is.na(ie[[col]]))
+        J <- max(which(ie$fraction > max.frac-1 & !is.na(ie[[col]])))
+        if (length(I) > 0 & length(J) > 0) ie[I, c(col)] <<- ie[[col]][J]
+        # print(col)
+        # print(I)
+        # print(J)
+    }
+    
+    patch_ie_col("dividend")
+    patch_ie_col("earnings")
+    patch_ie_col("cpi")
+    patch_ie_col("cape10")
+
     
     # adds total return and CPI data before 1871
     ie$price <- ifelse(ie$date < 1871, ie$tri.ws*9.13, ie$price)
@@ -350,3 +436,57 @@
     return(ie)
 }
 ### <---------------------------------------------------------------------->
+.append_sp500_from_fred <- function(ie.raw) {
+    ts <- jubilee.fred_data("SP500")
+    df <- data.table(R_Date=index(ts),
+        close=as.numeric(ts$Close),
+        epoch=.R_Date2epoch(index(ts)),
+        date=.R_Date2date(index(ts))
+    )
+    epoch <- NULL # dummy for CMD check
+    mdf <- data.table::as.data.table(
+        df %>%
+        dplyr::group_by(epoch) %>%
+        dplyr::summarize(
+            price = mean(close, na.rm=TRUE),
+            date = max(date, na.rm=TRUE))
+    )
+    
+    fr <- tail(ie.raw[,c("date", "fraction")], 12)
+    fr$month <- round((fr$date %% 1)*100)
+    fr$month_frac <- fr$fraction %% 1
+    
+    calc_fraction_from_date <- function(d) {
+        y <- floor(d)
+        m <- round((d %% 1)*100)
+        as.numeric(y + fr[fr$month == m]$month_frac)
+    }
+
+    `%notin%` <- Negate(`%in%`)
+    mdf_new <- mdf[mdf$epoch %notin% ie.raw$epoch & mdf$epoch != .R_Date2epoch(Sys.Date())]
+    mdf_new$fraction <- calc_fraction_from_date(mdf_new$date)
+    
+    message(sprintf("Max date in SP500: %.2f", tail(mdf$date,1)))
+    if (nrow(mdf_new) > 0) {
+        message(mdf_new)
+    
+        dt2 <- merge(ie.raw, mdf_new, by="epoch", all=TRUE, suffixes=c("", ".y"))
+        dt2$date <- ifelse(is.na(dt2$date), dt2$date.y, dt2$date)
+        dt2$price <- ifelse(is.na(dt2$price), dt2$price.y, dt2$price)
+        dt2$real.price <- ifelse(is.na(dt2$real.price), dt2$price.y, dt2$real.price)
+        dt2$fraction <- ifelse(is.na(dt2$fraction), dt2$fraction.y, dt2$fraction)
+    
+        dt2$date.y = NULL
+        dt2$price.y = NULL
+        dt2$fraction.y = NULL
+    }
+    else {
+        dt2 <- ie.raw
+    }
+    
+    max_date2 <- tail(dt2$date,1)
+    max_spx2 <- tail(dt2$price,1)
+    # message(sprintf("DEBUG: Maximum date in enriched ie is %.2f and SPX average at %.2f", max_date2, max_spx2))
+
+    return(dt2)
+}

@@ -37,9 +37,11 @@
 #' @importFrom zoo index
 #'
 #' @examples
+#' \dontrun{
 #'   repo <- jubilee.repo(online=FALSE)
 #'   a <- jubilee.read_fred_file(repo@ie$fraction, "BAA.csv", "BAA")
 #'   tail(a)
+#' }
 #'
 ### <======================================================================>
 jubilee.read_fred_file <- function(fraction, local_file, symbol, 
@@ -65,7 +67,7 @@ jubilee.read_fred_file <- function(fraction, local_file, symbol,
     }
     
     if (online & is.null(daily_symbol)) {
-        print(paste("Fetching online data from FRED for:", symbol))
+        message(paste("Fetching online data from FRED for:", symbol))
         df.online <- fetch_fred_to_dtb(symbol)
         df <- merge(df, df.online, all=TRUE)
         df[, c(symbol)] <- ifelse(df[["DATE"]] < as.Date("2016-12-31"),
@@ -73,7 +75,7 @@ jubilee.read_fred_file <- function(fraction, local_file, symbol,
     }
     
     if (online & !is.null(daily_symbol)) {
-        print(paste("Fetching online data from FRED for:", symbol, ",", daily_symbol))
+        message(paste("Fetching online data from FRED for:", symbol, ",", daily_symbol))
         df.online <- fetch_fred_to_dtb(symbol) # this is monthly data
         df <- merge(df, df.online, all=TRUE)
         max_monthly_date <- max(df$DATE)

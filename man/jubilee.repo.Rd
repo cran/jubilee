@@ -4,10 +4,13 @@
 \alias{jubilee.repo}
 \title{Constructor of \code{jubilee.repo} class}
 \usage{
-jubilee.repo(online = TRUE)
+jubilee.repo(online = TRUE, force = TRUE)
 }
 \arguments{
 \item{online}{logical, indicating whether to fetch data from online resource or not. Default is \code{TRUE}.}
+
+\item{force}{logical, if FALSE, allowed to retrieve previous object stored in option.
+The FALSE setting overrides the online=TRUE setting. Default is \code{TRUE}.}
 }
 \value{
 An object of \code{jubilee.repo} class
@@ -20,9 +23,11 @@ Optionally, this function can fetch more recent data from the website of Robert 
 Federal Reserve FRED website if the R session has connection to the internet.
 }
 \examples{
+\dontrun{
   repo <- jubilee.repo(online=FALSE)
   dtb <- repo@ie
   tail(dtb,1)
+}
 
 }
 \author{

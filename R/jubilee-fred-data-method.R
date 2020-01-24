@@ -6,6 +6,7 @@
 #'
 #' @param symbol character, the name of the time series
 #' @param col_out character, the name of the output closing price column. Default is "Close"
+#' @param retry numeric, number of retries on the URL. Default is 3.
 #'
 #' @return The \code{xts} object for the time series
 #'
@@ -23,15 +24,30 @@
 #' }
 #'
 ### <======================================================================>
-jubilee.fred_data <- function (symbol, col_out="Close")
+jubilee.fred_data <- function (symbol, col_out="Close", retry=3)
 {
 
     tmp <- tempfile()
     FRED.URL <- "https://fred.stlouisfed.org/series"
     URL <- paste(FRED.URL, "/", symbol, "/downloaddata/", symbol, ".csv", sep="")
-    utils::download.file(URL, destfile=tmp, quiet=TRUE)
-    fr <- utils::read.csv(tmp, na.strings=".")
-    unlink(tmp)
+    fetch <- function() {
+        utils::download.file(URL, destfile=tmp, quiet=TRUE)
+        fr <- utils::read.csv(tmp, na.strings=c(".","NA"))
+        unlink(tmp)
+        return (fr)
+    }
+    
+    fr <- NULL
+    attempt <- 0
+    while( is.null(fr) && attempt <= retry ) {
+        attempt <- attempt + 1
+        Sys.sleep(0.2) # slow down hitting FRED server
+        tryCatch(
+            fr <- fetch(),
+            error = function(e) Sys.sleep(2)
+        )
+    }
+    if (is.null(fr)) stop(sprintf("ERROR: fred_data API failed to fetch %s", symbol))
 
     ts <- xts(as.matrix(fr[,-1]),
               as.Date(fr[,1],origin='1970-01-01'),

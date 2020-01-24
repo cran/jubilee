@@ -22,6 +22,14 @@ jubilee.repo.config <- function() {
                file="ie_data.xls")
     schwert <- list(file="schwert-w2985-data-only.xlsx")
 
+    # SP500 is so essential, it has to be handled separately
+    sp500 <- list(file="SP500.csv",
+                  symbol="SP500",
+                  daily_symbol="SP500",
+                  period="D",
+                  fmt="%.2f",
+                  dtb_colname="price")
+
     gold <- list(file="GOLDAMGBD228NLBM.csv",
                  annual_file="GOLD-annual-1792.csv", # this makes gold not simply FRED
                  symbol="GOLDAMGBD228NLBM",
@@ -37,6 +45,13 @@ jubilee.repo.config <- function() {
                        period="M",
                        fmt="%.2f",
                        dtb_colname="rate.tb3ms")
+
+    rate.gs10 <- list(file="GS10.csv",
+                      symbol="GS10",
+                      daily_symbol=NULL,
+                      period="M",
+                      fmt="%.2f",
+                      dtb_colname="rate.gs10")
     
     # defines simple FRED symbols, primarily monthly, but some quarterly
     rate.baa <- list(file="BAA.csv", 
@@ -136,6 +151,7 @@ jubilee.repo.config <- function() {
     # list collection of "simple" FRED time series
     monthly.fred = list(unrate=unrate,
                         tcu=tcu,
+                        rate.gs10=rate.gs10,
                         rate.baa=rate.baa,
                         rate.ed3ms=rate.ed3ms,
                         rate.fedfunds=rate.fedfunds,
@@ -149,6 +165,7 @@ jubilee.repo.config <- function() {
 
     return(list(ie=ie,
                 schwert=schwert,
+                sp500=sp500,
                 gold=gold,
                 rate.tb3ms=rate.tb3ms,
                 monthly.fred=monthly.fred))

@@ -78,6 +78,8 @@
     rate.spread.mean <- mean(reg.dtb$rate.spread, na.rm=TRUE)
     reg.dtb$rate.spread.norm <- (reg.dtb$rate.spread-rate.spread.mean)/reg.dtb$rate.gs10
     reg.dtb$rate.gs10.modinv <- rate.spread.mean/reg.dtb$rate.gs10
+    reg.dtb$rate.gs10.logr.10 <- jubilee.backward_rtn(dtb$fraction, dtb$rate.gs10.log.tri, 10)
+    reg.dtb$rate.gs10.logr.20 <- jubilee.backward_rtn(dtb$fraction, dtb$rate.gs10.log.tri, 20)
     
     # derived quantities and fix of CAPE
     reg.dtb$log.cape10 <- log(dtb$cape10)
@@ -119,12 +121,20 @@
     reg.dtb$eqty.logr.f1 <- jubilee.forward_rtn(dtb$fraction, dtb$log.tri, 1) # 1-year fwd return, short-term
     reg.dtb$eqty.logr.f3 <- jubilee.forward_rtn(dtb$fraction, dtb$log.tri, 3) # 3-year fwd return, short-term
 
+    # 1m log-return for simulation
+    reg.dtb$eqty.logr.1m <- jubilee.backward_rtn(dtb$fraction, dtb$log.tri, 1/12) # 1-month bwd return, short-term
+    reg.dtb$eqty.logr.f1m <- jubilee.forward_rtn(dtb$fraction, dtb$log.tri, 1/12) # 1-month fwd return, short-term
+
     reg.dtb$eqty.logr.1.6m <- jubilee.backward_rtn(reg.dtb$fraction, reg.dtb$eqty.logr.1, 0.5) # 6m acceleration of 1y bwd return
 
+    reg.dtb$eqty.logr.10 <- jubilee.backward_rtn(dtb$fraction, dtb$log.tri, 10)
+    reg.dtb$eqty.logr.20 <- jubilee.backward_rtn(dtb$fraction, dtb$log.tri, 20)
     reg.dtb$eqty.logr.f10 <- jubilee.forward_rtn(dtb$fraction, dtb$log.tri, 10)
     reg.dtb$eqty.logr.f20 <- jubilee.forward_rtn(dtb$fraction, dtb$log.tri, 20)
+    reg.dtb$eqty.logr.f40 <- jubilee.forward_rtn(dtb$fraction, dtb$log.tri, 40)
     reg.dtb$eqty.real.logr.f10 <- jubilee.forward_rtn(dtb$fraction, dtb$real.log.tri, 10)
     reg.dtb$eqty.real.logr.f20 <- jubilee.forward_rtn(dtb$fraction, dtb$real.log.tri, 20)
+    reg.dtb$eqty.real.logr.f40 <- jubilee.forward_rtn(dtb$fraction, dtb$real.log.tri, 40)
     
     reg.dtb$gold.real.logp <- dtb$gold.real.logp <- log(dtb$gold/dtb$cpi)
     reg.dtb$gold.lm.y <- jubilee.ols(dtb$fraction, dtb$gold.real.logp, lookback.channel = lookback.channel)$lm.y

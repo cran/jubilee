@@ -24,8 +24,8 @@
 ### <======================================================================>
 jubilee.macro_cost <- function(dtb, rs, penalty=c(1,1,1), new.tb3ms=NA, new.gs10=NA) {
 
-    if (class(rs$type1$lm) != "lm") stop("rs structure is wrong: type1$lm")
-    if (class(rs$type1$coef) != "numeric") stop("rs structure is wrong: type1$coef")
+    if (! is(rs$type1$lm, "lm")) stop("rs structure is wrong: type1$lm")
+    if (! is(rs$type1$coef, "numeric")) stop("rs structure is wrong: type1$coef")
     
     penalty <- head(c(penalty, rep(0,6)),6)
     df <- jubilee.macro_predict(dtb, rs, new.tb3ms=new.tb3ms, new.gs10=new.gs10)

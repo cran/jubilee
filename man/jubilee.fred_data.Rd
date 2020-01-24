@@ -4,12 +4,14 @@
 \alias{jubilee.fred_data}
 \title{Internal utility to download time series data from FRED}
 \usage{
-jubilee.fred_data(symbol, col_out = "Close")
+jubilee.fred_data(symbol, col_out = "Close", retry = 3)
 }
 \arguments{
 \item{symbol}{character, the name of the time series}
 
 \item{col_out}{character, the name of the output closing price column. Default is "Close"}
+
+\item{retry}{numeric, number of retries on the URL. Default is 3.}
 }
 \value{
 The \code{xts} object for the time series

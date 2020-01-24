@@ -23,7 +23,7 @@
 #'
 ### <======================================================================>
 jubilee.std_fault_line <- function(name) {
-    if (class(name) == "numeric") return(make_matrix(name))
+    if (is(name, "numeric")) return(make_matrix(name))
     if (name == "list") {
         return(c("r_nom_f10_5ftr_1fl",
                  "r_nom_f10_5ftr_2fl",

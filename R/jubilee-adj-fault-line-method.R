@@ -27,8 +27,8 @@
 #'
 ### <======================================================================>
 jubilee.adj_fault_line <- function(fraction, ts, fl, months=1) {
-    if (class(fl)=="character") fl <- jubilee.std_fault_line(fl)
-    if (class(fl)=="numeric") {
+    if (is(fl, "character")) fl <- jubilee.std_fault_line(fl)
+    if (is(fl, "numeric")) {
         make_matrix <- function(v) {
             m = matrix(v, nrow=length(v)/2, ncol=2, byrow=TRUE)
             colnames(m) <- c("fraction", "shift")

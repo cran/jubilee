@@ -19,8 +19,8 @@
 ### <======================================================================>
 jubilee.optimal_tb3ms <- function(dtb, rs, penalty=c(1,1,1)) {
 
-    if (class(rs$type1$lm) != "lm") stop("rs structure is wrong: type1$lm")
-    if (class(rs$type1$coef) != "numeric") stop("rs structure is wrong: type1$coef")
+    if (! is(rs$type1$lm, "lm")) stop("rs structure is wrong: type1$lm")
+    if (! is(rs$type1$coef, "numeric")) stop("rs structure is wrong: type1$coef")
 
     sp <- c(
         rs$type1$coef["rate.spread.norm"],

@@ -36,9 +36,11 @@ This utility reads the internal static file, optionally amends with FRED online 
 and returns the values of a given symbol.
 }
 \examples{
+\dontrun{
   repo <- jubilee.repo(online=FALSE)
   a <- jubilee.read_fred_file(repo@ie$fraction, "BAA.csv", "BAA")
   tail(a)
+}
 
 }
 \author{

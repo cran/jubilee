@@ -58,8 +58,8 @@
 
 \title{Jubilee: Forecasting Long-Term Growth of S\&P 500 Index }
 
-\author{by Stephen H.-T. Lihn (\email{stevelihn@gmail.com}, \texttt{v0.2.5},
-released on Mar 31, 2019)}
+\author{by Stephen H.-T. Lihn (\email{stevelihn@gmail.com}, \texttt{v0.2.6},
+released on Dec 31, 2019)}
 \maketitle
 
 \abstract{This tutorial shows how to use the \texttt{jubilee} package in R
@@ -235,8 +235,8 @@ several essential data tables:
 > repo <- jubilee.repo(online=FALSE)
 \end{Sinput}
 \begin{Soutput}
-[1] "Maximum date in ie.data is 2019.07 and SPX average at 2975.95"
-[1] "Maximum date for unrate is 2019-06-16 and for GDP, 2019-02-15"
+[1] "Maximum date in raw ie.data is 2019.12 and SPX average at 3223.38"
+[1] "Maximum date for unrate is 2019-12-16 and for GDP, 2019-08-16"
 \end{Soutput}
 \begin{Sinput}
 > ju <- jubilee(repo@ie, lookback.channel=45, fwd.rtn.duration=10)
@@ -311,6 +311,8 @@ address in Section ``\nameref{sec:short-horizon}''.
 +      xlab="$t$", ylab="$Y(t)$",
 +      main="The channel deviation Y(t)")
 > abline(h=0, col="red", lty=2)
+> 
+> lines(dj$fraction, dj$usrec.nber*0.25-1.0, col="gray", lty=1) 
 \end{Sinput}
 
 
@@ -321,7 +323,9 @@ address in Section ``\nameref{sec:short-horizon}''.
 \end{Schunk}
 
 \caption{\label{fig:channel-dev-Yt}The channel deviation $Y(t)$. It is mean-reverting
-with an approximate 40-year cycle. }
+with an approximate 40-year long-term cycle. The NBER recession indicator
+is drawn in gray line to illustrate the relative scale to the short-term
+business cycles.}
 
 \end{figure}
 
@@ -370,23 +374,23 @@ lm(formula = eqty.logr.f10 ~ eqty.lm.y + eqty.lm.r + log.cape10.adj +
 
 Residuals:
       Min        1Q    Median        3Q       Max 
--0.109464 -0.012505 -0.000042  0.013734  0.066082 
+-0.109464 -0.012396 -0.000075  0.013694  0.066083 
 
 Coefficients:
                  Estimate Std. Error t value Pr(>|t|)    
-(Intercept)     0.4059518  0.0064600  62.840   <2e-16 ***
-eqty.lm.y      -0.0885792  0.0018780 -47.167   <2e-16 ***
-eqty.lm.r      -2.7815494  0.0596564 -46.626   <2e-16 ***
-log.cape10.adj -0.0432022  0.0008104 -53.310   <2e-16 ***
-cpi.logr.10    -0.0576107  0.0341383  -1.688   0.0917 .  
-cpi.logr.20     0.9964918  0.0442087  22.541   <2e-16 ***
+(Intercept)     0.4059376  0.0064490   62.95   <2e-16 ***
+eqty.lm.y      -0.0885762  0.0018667  -47.45   <2e-16 ***
+eqty.lm.r      -2.7814138  0.0595289  -46.72   <2e-16 ***
+log.cape10.adj -0.0432007  0.0008091  -53.40   <2e-16 ***
+cpi.logr.10    -0.0575684  0.0340685   -1.69   0.0913 .  
+cpi.logr.20     0.9964247  0.0441279   22.58   <2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-Residual standard error: 0.02042 on 1536 degrees of freedom
+Residual standard error: 0.02039 on 1541 degrees of freedom
   (121 observations deleted due to missingness)
-Multiple R-squared:  0.8135,	Adjusted R-squared:  0.8129 
-F-statistic:  1340 on 5 and 1536 DF,  p-value: < 2.2e-16
+Multiple R-squared:  0.8139,	Adjusted R-squared:  0.8133 
+F-statistic:  1348 on 5 and 1541 DF,  p-value: < 2.2e-16
 \end{Soutput}
 \end{Schunk}
 
@@ -457,6 +461,11 @@ rally, the dot-com crash, and the 2008-2009 crash and rebound.
 +      main="Forecast of log-index X(t) in 10y model")
 > lines(dj$fraction, dj$log.tri, cex=0.1, col="blue") 
 > 
+> legend(x=2000, y=17, bg="transparent",
++      legend=c("Actual", "10y"),
++      lwd=c(1,1), lty=c(1,1), cex=0.6,
++      col=c("blue", "red"))
+> 
 > plot(pred.10$fraction[J10], pred.10$price[J10], col="red", type="l", 
 +      xlab="$t$", ylab="$p(t)$",
 +      main="Forecast of price index p(t) in 10y Model")
@@ -495,8 +504,8 @@ parameter $\Delta T_{f}$ is set to 20 years:
 > repo <- jubilee.repo(online=FALSE)
 \end{Sinput}
 \begin{Soutput}
-[1] "Maximum date in ie.data is 2019.07 and SPX average at 2975.95"
-[1] "Maximum date for unrate is 2019-06-16 and for GDP, 2019-02-15"
+[1] "Maximum date in raw ie.data is 2019.12 and SPX average at 3223.38"
+[1] "Maximum date for unrate is 2019-12-16 and for GDP, 2019-08-16"
 \end{Soutput}
 \begin{Sinput}
 > ju <- jubilee(repo@ie, lookback.channel=45, fwd.rtn.duration=20)
@@ -547,23 +556,23 @@ lm(formula = eqty.logr.f20 ~ eqty.lm.y + eqty.lm.r + log.cape20.adj +
 
 Residuals:
       Min        1Q    Median        3Q       Max 
--0.042841 -0.007359  0.000219  0.006398  0.046093 
+-0.042841 -0.007351  0.000205  0.006378  0.046092 
 
 Coefficients:
                  Estimate Std. Error t value Pr(>|t|)    
-(Intercept)     0.0951992  0.0020374   46.73   <2e-16 ***
-eqty.lm.y      -0.0262312  0.0011001  -23.84   <2e-16 ***
-eqty.lm.r       0.3889991  0.0248760   15.64   <2e-16 ***
-log.cape20.adj -0.0248460  0.0003953  -62.86   <2e-16 ***
-cpi.logr.10     0.3253106  0.0165312   19.68   <2e-16 ***
-cpi.logr.20    -0.8882144  0.0264468  -33.59   <2e-16 ***
+(Intercept)     0.0951878  0.0020242   47.03   <2e-16 ***
+eqty.lm.y      -0.0262233  0.0010905  -24.05   <2e-16 ***
+eqty.lm.r       0.3891438  0.0247056   15.75   <2e-16 ***
+log.cape20.adj -0.0248452  0.0003942  -63.02   <2e-16 ***
+cpi.logr.10     0.3253286  0.0164986   19.72   <2e-16 ***
+cpi.logr.20    -0.8882677  0.0263884  -33.66   <2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
-Residual standard error: 0.011 on 1297 degrees of freedom
+Residual standard error: 0.01098 on 1302 degrees of freedom
   (360 observations deleted due to missingness)
-Multiple R-squared:  0.8617,	Adjusted R-squared:  0.8611 
-F-statistic:  1616 on 5 and 1297 DF,  p-value: < 2.2e-16
+Multiple R-squared:  0.8624,	Adjusted R-squared:  0.8618 
+F-statistic:  1631 on 5 and 1302 DF,  p-value: < 2.2e-16
 \end{Soutput}
 \end{Schunk}
 
@@ -616,6 +625,11 @@ in the price level foreast in the lower panel.
 +      main="Prediction of log index X(t) in 20y model")
 > lines(dt$fraction, dt$log.tri, cex=0.1, col="blue")
 > lines(pred.10$fraction[J20], pred.10$log.tri[J20], type="l", col="red", lty=2)
+> 
+> legend(x=1990, y=18, bg="transparent",
++      legend=c("Actual", "20y", "10y"),
++      lwd=c(1,1,1), lty=c(1,1,2), cex=0.6,
++      col=c("blue", "red", "red"))
 > 
 > J20a <- which(pred.20$fraction >= 1995 & pred.20$fraction <= 2025)
 > plot(pred.20$fraction[J20a], pred.20$price[J20a], col="red", type="l", 
@@ -713,25 +727,25 @@ below:
 > mean(pred.20$log.tri.smr, na.rm=TRUE)
 \end{Sinput}
 \begin{Soutput}
-[1] -1.456836e-05
+[1] -1.449178e-05
 \end{Soutput}
 \begin{Sinput}
 > sd(pred.20$log.tri.smr, na.rm=TRUE)
 \end{Sinput}
 \begin{Soutput}
-[1] 0.2197144
+[1] 0.2192973
 \end{Soutput}
 \begin{Sinput}
 > moments::skewness(pred.20$log.tri.smr, na.rm=TRUE)
 \end{Sinput}
 \begin{Soutput}
-[1] 0.1614918
+[1] 0.161753
 \end{Soutput}
 \begin{Sinput}
 > moments::kurtosis(pred.20$log.tri.smr, na.rm=TRUE)
 \end{Sinput}
 \begin{Soutput}
-[1] 4.305534
+[1] 4.321367
 \end{Soutput}
 \end{Schunk}
 
@@ -752,6 +766,8 @@ either over-sold or over-bought.
 > abline(h=sd2, col="blue", lty=2)
 > abline(h=-sd2, col="blue", lty=2)
 > rect(1937, 0.5, 1945, 0.7, col="orange") # WWII
+> 
+> lines(dj$fraction, dj$usrec.nber*0.25-0.9, col="gray", lty=1)
 \end{Sinput}
 
 
@@ -764,7 +780,8 @@ either over-sold or over-bought.
 \caption{\label{fig:20y-smr-plot}The short-horizon mean reversion (SMR) index
 $Z_{20}\left(t\right)$, drawn in the blue line. The dotted blue lines
 are the $\pm2$-stdev of $Z_{20}\left(t\right)$. The orange box represents
-WWII.}
+WWII. The NBER recession indicator is drawn in gray line to illustrate
+the short-term business cycles.}
 
 \end{figure}
 
@@ -855,7 +872,7 @@ once the yield spread is widened large enough.
 > rate.spread.mean
 \end{Sinput}
 \begin{Soutput}
-[1] 1.459764
+[1] 1.452224
 \end{Soutput}
 \begin{Sinput}
 > J <- which(dj$fraction > 1912) 
@@ -1004,10 +1021,10 @@ Residuals:
 
 Coefficients:
                  Estimate Std. Error t value Pr(>|t|)    
-(Intercept)       2.33592    0.26146   8.934   <2e-16 ***
-rate.gs10         0.40549    0.02408  16.839   <2e-16 ***
-rate.gs10.modinv  3.36908    0.39905   8.443   <2e-16 ***
-rate.spread.norm  4.74594    0.16454  28.843   <2e-16 ***
+(Intercept)       2.33592    0.26146   8.934  < 2e-16 ***
+rate.gs10         0.40549    0.02408  16.839  < 2e-16 ***
+rate.gs10.modinv  3.36193    0.40125   8.379 2.29e-16 ***
+rate.spread.norm  4.74594    0.16454  28.843  < 2e-16 ***
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -1063,6 +1080,7 @@ stays below 3\%, the minimum unemployment rate can go as low as 3\%.
 \begin{figure}[H]
 \begin{Schunk}
 \begin{Sinput}
+> J <- which (dt$fraction >= 1950 & is.finite(dt$unrate))
 > plot(dj$fraction[J], dj$unrate[J], type="l", col="blue",
 + 	 ylab="UNRATE", xlab="$t$", ylim=c(1.5,11),
 +      main=sprintf("Unemployment rate as alternative high-yield bond"))

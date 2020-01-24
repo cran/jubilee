@@ -1,0 +1,641 @@
+%\VignetteIndexEntry{Real-time Recession Probability with Hidden Markov Model and Unemployment Momentum}
+%\VignetteEngine{R.rsp::tex}
+%\VignetteKeyword{R}
+%\VignetteKeyword{package}
+%\VignetteKeyword{vignette}
+%\VignetteKeyword{LaTeX}
+\batchmode
+\makeatletter
+\def\input@path{{\string"./\string"}}
+\makeatother
+\documentclass[a4paper]{report}\usepackage[]{graphicx}\usepackage[]{color}
+%% maxwidth is the original width if it is less than linewidth
+%% otherwise use linewidth (to make sure the graphics do not exceed the margin)
+\makeatletter
+\def\maxwidth{ %
+  \ifdim\Gin@nat@width>\linewidth
+    \linewidth
+  \else
+    \Gin@nat@width
+  \fi
+}
+\makeatother
+
+
+
+
+\usepackage[T1]{fontenc}
+\usepackage[latin9]{inputenc}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+\usepackage{rotfloat}
+\usepackage{booktabs}
+\usepackage{amsmath}
+
+\makeatletter
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% LyX specific LaTeX commands.
+%% Because html converters don't know tabularnewline
+\providecommand{\tabularnewline}{\\}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Textclass specific LaTeX commands.
+\usepackage{RJournal}
+\usepackage{booktabs}
+
+\fancyhf{}
+\fancyhead[LO,RE]{\textsc{Contributed Article}}
+\fancyhead[RO,LE]{\thepage}
+\fancyfoot[L]{The R Journal Vol. X/Y, Month, Year}
+\fancyfoot[R]{ISSN 2073-4859}
+
+\AtBeginDocument{%
+  \begin{article}
+}
+
+\AtEndDocument{%
+  \end{article}
+}
+
+\makeatother
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\begin{document}
+
+
+\title{Real-time Recession Probability with Hidden Markov Model and Unemployment
+Momentum}
+
+\author{by Stephen H.-T. Lihn (\email{stevelihn@gmail.com}, \texttt{v0}.2.1,
+released on Dec 31, 2019)}
+\maketitle
+
+\abstract{We show how to construct a composite Hidden Markov Model (HMM) to
+calculate real-time recession probability, using the \texttt{jubilee}
+and \texttt{ldhmm} packages in R. The input data is the unemployment
+rate (UNRATE) which is released monthly by the U.S. government. There
+are two sub-models: The one-year momentum model and the 6-month acceleration
+model. The product of the two generates the recession probability.
+Our model demonstrates that positive momentum in unemployment kicks
+off a recession. The momentum accelerates during the recession. And
+eventually the rapid deceleration marks the end of it.}
+
+\section{\label{sec:Introduction}Introduction}
+
+In Section 9 of \citet{lihn2019}, we developed a composite Hidden
+Markov Model (HMM) to calculate real-time recession probability, using
+the \texttt{jubilee} and \texttt{ldhmm} packages in R (\citet{R2019}).
+The input data is the unemployment rate (UNRATE) which is released
+monthly by the U.S. government (\citet{USBLS2019}). The HMM in the
+\texttt{ldhmm} package utilizes mixtures of $\lambda$ distribution
+to capture the kurtosis more accurately (\citet{lihn2017}) \footnote{The PDF of a $\lambda$ distribution is a two-sided stretched exponential
+function, defined by the parameter tuple $\left(\mu,\sigma,\lambda\right)$,
+\begin{align}
+P(x;\mu,\sigma,\lambda) & =\frac{1}{\sigma\lambda\varGamma\left(\frac{\lambda}{2}\right)}\,e^{-\left|\frac{x-\mu}{\sigma}\right|^{\frac{2}{\lambda}}}.\label{eq:PDF}
+\end{align}
+The shape parameter $\lambda>0$ is called the ``order'' of the
+distribution. The kurtosis is increasing with $\lambda$. When $\lambda=1$,
+it converges to a normal distribution. In the context of stable distribution,
+we have the stability index $\alpha=2/\lambda$.} , which would not be possible with normal mixtures. In this paper,
+we provide the technical detail about this recession probability model.
+
+There are two sub-models: The one-year momentum model and the 6-month
+acceleration model. In the momentum sub-model, define the \textbf{unemployment
+momentum} as one-year log-return of UNRATE:
+
+\begin{equation}
+\begin{aligned}U_{1y}\left(t\right) & \equiv\log\,UNRATE\left(t\right)-\log\,UNRATE\left(t-1\right).\end{aligned}
+\label{eq:unrate-mom}
+\end{equation}
+$U_{1y}\left(t\right)$ is treated as a two-state HMM: The first state
+is the crash state, or called ``the crash regime.'' And the second
+state is the normal state. The economy spends most of its time in
+the normal state, which is associated with negative momentum. That
+is, the unemployment rate is decreasing, and the job market is improving.
+On the other hand, the crash state is associated with large positive
+momentum. In this state, the economy loses jobs in a rapid pace. 
+
+The two regime scenario is consistent with the regime-switching findings
+in \citet{bae2014} and \citet{mulvey2016}. On the other hand, when
+$U_{1y}\left(t\right)>0$, we note that $U_{1y}\left(t\right)$ is
+approximately 1/6 of Sahm's unemployment index in \citet{sahm2019}.
+The reason was explained in Section 9.1 of \citet{lihn2019}. 
+
+For the acceleration sub-model, define the \textbf{unemployment acceleration}
+as the 6-month rate of change of $U_{1y}\left(t\right)$ such as
+
+\begin{equation}
+\begin{aligned}A_{6m}\left(t\right) & \equiv2\left(U_{1y}\left(t\right)-U_{1y}\left(t-0.5\right)\right).\end{aligned}
+\label{eq:unrate-acc}
+\end{equation}
+$A_{6m}\left(t\right)$ is treated as a three-state HMM: the accelerating
+state, middle state, and decelerating state. Recession is often associated
+with the accelerating state.
+
+Finally, the recession probability is the product of the probability
+in the crash state and the probability in the accelerating state.
+Our model demonstrates that positive momentum in unemployment kicks
+off a recession. The momentum accelerates during the recession. And
+the rapid decceleration marks the end of it.
+
+\section{\label{sec:Loading-Package}Loading Package and Preparing Data}
+
+This paper is written in the reproducible research style. If the reader
+follows each command, he/she should obtain the same result. Very small
+difference may come from libraries using random numbers, such as the
+fitting of the normal mixtures. 
+
+We begin with loading the \texttt{jubilee} package and setting up
+several essential data tables:
+
+\begin{Schunk}
+\begin{Sinput}
+> library(jubilee)
+> 
+> set.seed(804)
+> repo <- jubilee.repo(online=FALSE)
+\end{Sinput}
+\begin{Soutput}
+[1] "Maximum date in raw ie.data is 2019.12 and SPX average at 3223.38"
+[1] "Maximum date for unrate is 2019-12-16 and for GDP, 2019-08-16"
+\end{Soutput}
+\begin{Sinput}
+> ju <- jubilee(repo@ie, lookback.channel=45, fwd.rtn.duration=10)
+> dt <- ju@dtb
+> dj <- ju@reg.dtb
+\end{Sinput}
+\end{Schunk}
+
+The attributes that we are interested in this paper are:
+\begin{itemize}
+\item $t$ \texttt{= dj\$fraction} : Time in years. Each month is in the
+1/12 unit. Note that we follow Shiller's ``middle of the month''
+convention since he averages the quantity. But when we download the
+monthly data from FRED, we use the monthly data as is. There is no
+average involved in monthly data.
+\item $UNRATE\left(t\right)$ \texttt{= dj\$unrate}: The unemployment rate.
+\item $U_{1y}\left(t\right)$ \texttt{= dj\$unrate.logr.1}: The unemployment
+momentum $U_{1y}\left(t\right)$, which will be renamed to \texttt{unrate.mom}
+shortly.
+\item $A_{6m}\left(t\right)$\texttt{ = dj\$unrate.logr.1.6m}: The unemployment
+acceleration $A_{6m}\left(t\right)$, which will be renamed to \texttt{unrate.acc}
+shortly.
+\end{itemize}
+We would like to limit our analysis to the training period of $t>1956$.
+The data was too volatile prior to this time, which tends to distort
+the training of the HMM states. 
+
+We create the following target data table \texttt{rec.dtb} that contains
+all the macro data used in this paper. This is shown below:
+
+\begin{Schunk}
+\begin{Sinput}
+> # J defines the training period, avoid all NA situations
+> J <- which(dj$fraction > 1956 & is.finite(dj$unrate) 
++            & is.finite(dj$unrate.logr.1) & is.finite(dj$unrate.logr.1.6m))
+> rec.dtb <- data.table(
++     fraction = dj[J]$fraction,
++     unrate = dj[J]$unrate,
++     unrate.mom = dj[J]$unrate.logr.1,
++     unrate.acc = dj[J]$unrate.logr.1.6m,
++     usrec.nber = dj[J]$usrec.nber,
++     usrec.cp = dj[J]$usrec.cp
++ )
+\end{Sinput}
+\end{Schunk}
+
+$U_{1y}\left(t\right)$ is now called \texttt{unrate.mom}, and $A_{6m}\left(t\right)$
+is called \texttt{unrate.acc} for ease of memory. The \texttt{usrec.nber}
+column stores the U.S. recession binary probability from \citet{NBER2019}.
+The \texttt{usrec.cp} column stores the recession probability from
+\citet{piger2019}.
+
+\section{Bootstrapping With Normal Mixtures}
+
+In order to use the \texttt{ldhmm} package, we must provide initial
+estimate of the HMM states. This can be accomplished by the method
+of normal mixtures. We call this ``bootstrapping.'' We use the \texttt{mixtools}
+package in R as shown below:
+
+\begin{Schunk}
+\begin{Sinput}
+> library(mixtools)
+> 
+> rec <- list(
++     md_mom = mixtools::normalmixEM(rec.dtb$unrate.mom, k=2),
++     md_acc = mixtools::normalmixEM(rec.dtb$unrate.acc, k=3)
++ )
+\end{Sinput}
+\begin{Soutput}
+number of iterations= 51 
+number of iterations= 271 
+\end{Soutput}
+\end{Schunk}
+
+The momentum data is decomposed into two states (\texttt{lambda }is
+the state density, \texttt{mu} is the mean, and \texttt{sigma} the
+SD of the normal distribution):
+
+\begin{Schunk}
+\begin{Sinput}
+> summary(rec$md_mom)
+\end{Sinput}
+\begin{Soutput}
+summary of normalmixEM object:
+           comp 1   comp 2
+lambda  0.6084015 0.391598
+mu     -0.0815772 0.119816
+sigma   0.0644040 0.212434
+loglik at estimate:  415.9232 
+\end{Soutput}
+\end{Schunk}
+One state has positive mean, and the other has negative mean. This
+meets our expectation.
+
+The acceleration data is decomposed into three states:
+
+\begin{Schunk}
+\begin{Sinput}
+> summary(rec$md_acc)
+\end{Sinput}
+\begin{Soutput}
+summary of normalmixEM object:
+          comp 1     comp 2   comp 3
+lambda  0.243293 0.65197720 0.104730
+mu     -0.157921 0.00276007 0.386037
+sigma   0.450597 0.14032780 0.129627
+loglik at estimate:  -72.87702 
+\end{Soutput}
+\end{Schunk}
+One state has negative mean. The second state has nearly zero mean,
+while the third state has positive mean. Notice that the negative-mean
+state has very large SD. 
+
+We plot the time series data and the normal mixture distributions
+in Figure \ref{fig:Mixtures}.
+
+\begin{figure}
+\begin{Schunk}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-recession-hmm-mixture-plot-1} 
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:Mixtures}Momentum, Acceleration, and their normal mixtures.
+Panel (1) shows $U_{1y}\left(t\right)$ in the blue line. Panel (2)
+shows $A_{6m}\left(t\right)$ in the blue line. Panel (3) shows the
+two normal-mixture components (green and red) of the $U_{1y}\left(t\right)$
+distribution. Panel (4) shows the three normal-mixture components
+(green, red, and blue) of the $A_{6m}\left(t\right)$ distribution.}
+
+\end{figure}
+
+\section{HMM States for the Momentum Model}
+
+We introduce the following helper function \texttt{ldhmm.md2mle()},
+which takes a normal mixture object \texttt{md} from the \texttt{mixtools}
+package as input, and performs MLE optimization to obtain the $\lambda$
+distribution states in the \texttt{ldhmm} package. The function also
+performs decoding and calculates the state probabilities.
+
+\begin{Schunk}
+\begin{Sinput}
+> library(ldhmm)
+> 
+> ldhmm.md2mle <- function(md) {
++ 	stopifnot(class(md) == "mixEM")
++     m <- length(md$mu)
++     ord <- rev(order(md$mu)) # large-mu state goes first
++     param0 <- t(rbind(md$mu[ord], md$sigma[ord], md$mu*0 + 1))
++     gamma0 <- ldhmm.gamma_init(m=m)
++     h <- ldhmm(m, param0, gamma0, NULL, stationary=TRUE)
++     x <- md$x 
++     x[is.na(x)] <- 0 # just to be safe
++     hd <- ldhmm.mle(h, x, decode=TRUE, print.level=0)
++     rs <- list(
++         x = x,
++         md = md,
++         input = h,
++         output = hd,
++         prob = hd@states.prob[1,],
++         data_stats = hd@states.local.stats,
++         ld_stats = ldhmm.ld_stats(hd)
++     )
++     return(rs)
++ }
+\end{Sinput}
+\end{Schunk}
+
+First, we train the momentum model. The following listing shows the
+statistics and parameters of the momentum states from the \texttt{ldhmm}
+package:
+
+\begin{Schunk}
+\begin{Sinput}
+> rec$mom <- ldhmm.md2mle(rec$md_mom)
+> rec.dtb$prob_mom <- rec$mom$prob
+> rec$mom$data_stats
+\end{Sinput}
+\begin{Soutput}
+            mean         sd kurtosis   skewness length
+[1,]  0.20370299 0.17692780 4.343996 -0.1362543    224
+[2,] -0.08770653 0.06754179 3.385881 -0.4060775    544
+\end{Soutput}
+\begin{Sinput}
+> rec$mom$ld_stats
+\end{Sinput}
+\begin{Soutput}
+            mean         sd kurtosis
+[1,]  0.19087509 0.17757382 3.975593
+[2,] -0.08658013 0.06811048 3.314792
+\end{Soutput}
+\end{Schunk}
+
+The specifics of two momentum states are shown in Table \ref{tab:hmm-mom-model}. 
+
+\begin{table}[h]
+\begin{centering}
+\begin{tabular}{ccccccc}
+\toprule 
+$S_{U}$: $U_{1y}\left(t\right)$ State &
+State Name &
+Mean $\left(\mu\right)$ &
+Volatility (SD) &
+Kurtosis &
+$\lambda$  &
+$\sigma$\tabularnewline
+\midrule
+\midrule 
+$S_{U}=1$ &
+Crash &
+0.19 &
+0.18 &
+4.0 &
+1.41 &
+0.20\tabularnewline
+\midrule 
+$S_{U}=2$ &
+Normal &
+-0.087 &
+0.068 &
+3.3 &
+1.14 &
+0.090\tabularnewline
+\bottomrule
+\end{tabular}
+\par\end{centering}
+\medskip
+
+\caption{\label{tab:hmm-mom-model}$\lambda$ distribution parameters of two
+states in the Momentum model }
+\end{table}
+
+The first state is the crash state that has large positive mean, large
+SD, and its kurtosis is nearly 4.0, which is not close to a normal
+distribution. The second state is the normal state with a small negative
+mean, small SD, and its kurtosis is close of that of a normal distribution.
+
+We also observe that the stylized statistics from the data (\texttt{rec\$mom\$data\_stats})
+match reasonably well with the stylized statistics of the $\lambda$
+distribution states (\texttt{rec\$mom\$ld\_stats}). The HMM result
+is plotted in Figure \ref{fig:Momentum}.
+
+\begin{figure}
+\begin{Schunk}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-recession-hmm-mom-plot-1} 
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:Momentum}The HMM result of the Momentum model. The red
+line is $U_{1y}\left(t\right)$. The blue line is the probability
+of the crash state $P\left(t;S_{U}=1\right)$. The gray line and orange
+line are the rescaled recession probabilities from NBER and \citet{piger2019}
+as references.}
+\end{figure}
+
+\section{HMM States for the Acceleration Model}
+
+Next, we train the acceleration model. The following listing shows
+the statistics and parameters of the acceleration states from the
+\texttt{ldhmm} package:
+
+\begin{Schunk}
+\begin{Sinput}
+> rec$acc <- ldhmm.md2mle(rec$md_acc)
+> rec.dtb$prob_acc <- rec$acc$prob
+> rec$acc$data_stats
+\end{Sinput}
+\begin{Soutput}
+            mean        sd kurtosis   skewness length
+[1,]  0.29656765 0.1484197  2.45445  0.4120908    203
+[2,] -0.03296496 0.1118862  2.48250 -0.1964831    469
+[3,] -0.43560430 0.4461610  6.02684  1.1911775     96
+\end{Soutput}
+\begin{Sinput}
+> rec$acc$ld_stats
+\end{Sinput}
+\begin{Soutput}
+            mean        sd  kurtosis
+[1,]  0.31411712 0.1535551  2.178124
+[2,] -0.03384435 0.1120683  2.484404
+[3,] -0.40497393 0.4514759 13.436038
+\end{Soutput}
+\end{Schunk}
+
+The specifics of three acceleration states are shown in Table \ref{tab:hmm-acc-model}. 
+
+\begin{table}[h]
+\begin{centering}
+\begin{tabular}{ccccccc}
+\toprule 
+$S_{A}$: $A_{6m}\left(t\right)$ State &
+State Name &
+Mean $\left(\mu\right)$ &
+Volatility (SD) &
+Kurtosis &
+$\lambda$  &
+$\sigma$\tabularnewline
+\midrule
+\midrule 
+$S_{A}=1$ &
+Accelerating &
+0.31 &
+0.15 &
+2.2 &
+0.48 &
+0.27\tabularnewline
+\midrule 
+$S_{A}=2$ &
+Middle &
+-0.035 &
+0.11 &
+2.5 &
+0.70 &
+0.18\tabularnewline
+\midrule 
+$S_{A}=3$ &
+Decelerating &
+-0.40 &
+0.45 &
+13.6 &
+3.15 &
+0.11\tabularnewline
+\bottomrule
+\end{tabular}
+\par\end{centering}
+\medskip
+
+\caption{\label{tab:hmm-acc-model}$\lambda$ distribution parameters of three
+states in the Acceleration model }
+\end{table}
+
+The accelerating state has large mean, with SD about half of the mean.
+This ensures the state capture the positive acceleration data. The
+middle state has a nearly zero mean. Both states have kurtosis slightly
+less than that of a normal distribution.
+
+The decelerating state has large negative mean, with SD about the
+same magnitude as the mean. Thus this state captures the negative
+acceleration data. The most notable is that its kurtosis is very large.
+The data has it at 6.0, while its $\lambda$ distribution has it at
+13.0. This state is very far from a normal distribution.
+
+The HMM result is plotted in Figure \ref{fig:Acceleration}.
+
+\begin{figure}
+\begin{Schunk}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-recession-hmm-acc-plot-1} 
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:Acceleration}The HMM result of the Acceleration model.
+The red line is $A_{6m}\left(t\right)$. The blue line is the probability
+of the accelerating state $P\left(t;S_{A}=1\right)$. The gray line
+and orange line are the rescaled recession probabilities from NBER
+and \citet{piger2019} as references. The purple line at the bottom
+illustrates the state transition.}
+
+\end{figure}
+
+\section{Calculating Recession Probability}
+
+The recession probability $P_{REC}\left(t\right)$ is the product
+of the HMM probability in the crash state $P\left(t;S_{U}=1\right)$
+from $U_{1y}\left(t\right)$ and the HMM probability in the accelerating
+state $P\left(t;S_{A}=1\right)$ from $A_{6m}\left(t\right)$. That
+is,
+
+\begin{equation}
+\begin{aligned}P_{REC}\left(t\right) & \equiv P\left(t;S_{U}=1\right)\times P\left(t;S_{A}=1\right).\end{aligned}
+\label{eq:prob-rec}
+\end{equation}
+
+\begin{Schunk}
+\begin{Sinput}
+> rec.dtb$prob_recession <- rec.dtb$prob_mom * rec.dtb$prob_acc
+\end{Sinput}
+\end{Schunk}
+
+Figure \ref{fig:RecProb} shows the final result of $P_{REC}\left(t\right)$.
+As you can observe, it matches every recession in the past marked
+by NBER and \citet{piger2019} quite well. 
+
+\begin{sidewaysfigure}
+\begin{Schunk}
+
+
+{\centering \includegraphics[width=\maxwidth]{z-recession-hmm-rec-prob-plot-1} 
+
+}
+
+\end{Schunk}
+
+\caption{\label{fig:RecProb}Recession Probability. The blue line is the recession
+probability $P_{REC}\left(t\right)$. The red line and orange line
+are the rescaled recession probability from NBER and \citet{piger2019}
+as references.}
+\end{sidewaysfigure}
+
+We can calibrate the beginning and ending of each recession in HMM
+by the month when $P_{REC}\left(t\right)$ crosses 50\%. Compared
+to official NBER data, the beginning and ending of each recession
+can differ by $\pm4$ months. However, the average beginning month
+is less than one month ahead of NBER. And the average ending month
+is less than one month later than NBER. 
+
+\section{Discussion}
+
+We use a single macro-quantity UNRATE to calculate the recession probability.
+The model utilizes its first difference, momentum, and second difference,
+acceleration. The outcome is very close to the government benchmarks
+obtained from much more sophisticated procedures and models. Such
+result is satisfactory. It remains to be seen whether this model can
+flag the next recession as it occurs.
+
+This model is a good example of unsupervised machine learning in finance.
+Financial markets, in particular factors, are full of regimes. The
+timeseries behave differently in different regimes. A model as such
+that can isolate the regimes using first and second differenecs can
+have potential applications elsewhere.
+
+\section{Acknowledgement}
+
+I thank Professor John Mulvey at Princeton University for his guidance
+and discussions. 
+\begin{thebibliography}{Piger and Chauvet(2019)}
+\bibitem[Bae Kim, Mulvey(2014)]{bae2014} Geum Il Bae, Woo Chang Kim,
+and John M. Mulvey (2014). \textit{Dynamic asset allocation for varied
+financial markets under regime switching framework.} European Journal
+of Operational Research, Vol. 234, No. 2, pp. 450-458.
+
+\bibitem[Lihn(2017)]{lihn2017}Lihn, Stephen H.-T. (2017). \textit{Hidden
+Markov Model for Financial Time Series and Its Application to S\&P
+500 Index. }SSRN: 2979516.
+
+\bibitem[Lihn(2019)]{lihn2019}Lihn, Stephen H.-T. (2019). \textit{Business
+Cycles, Optimal Interest Rate, and Recession Forecast From Yield Curve,
+Unemployment, GDP, and Payrolls.} SSRN: 3422278.
+
+\bibitem[NBER(2019)]{NBER2019}NBER (2019). \textit{NBER based Recession
+Indicators for the United States from the Period following the Peak
+through the Trough {[}USREC{]}.} Retrieved from FRED, Federal Reserve
+Bank of St. Louis; https://fred.stlouisfed.org/series/USREC.
+
+\bibitem[Mulvey and Liu(2016)]{mulvey2016}John M. Mulvey and Han
+Liu (2016). \textit{Identifying Economic Regimes: Reducing Downside
+Risks for University Endowments and Foundations. }The Journal of Portfolio
+Management, Fall 2016, Vol. 43, No. 1: pp. 100-108.
+
+\bibitem[Piger and Chauvet(2019)]{piger2019}Piger, Jeremy Max and
+Marcelle Chauvet (2019). \textit{Smoothed U.S. Recession Probabilities
+{[}RECPROUSM156N{]}}. Retrieved from FRED, Federal Reserve Bank of
+St. Louis; https://fred.stlouisfed.org/series/RECPROUSM156N.
+
+\bibitem[R Core Team(2019)]{R2019}R Core Team (2019). \textit{R:
+A language and environment for statistical computing. }R Foundation
+for Statistical Computing, Vienna, Austria. URL http://www.R-project.org/.
+
+\bibitem[US BLS(2019)]{USBLS2019}U.S. Bureau of Labor Statistics
+(2019). \textit{Civilian Unemployment Rate {[}UNRATE{]}.} Retrieved
+from FRED, Federal Reserve Bank of St. Louis; https://fred.stlouisfed.org/series/UNRATE.
+
+\bibitem[Sahm(2019)]{sahm2019}Claudia Sahm (2019). \textit{Direct
+Stimulus Payments to Individuals.} Board of Governors of the Federal
+Reserve System. A part of the book ``Recession Ready: Fiscal Policies
+to Stabilize the American Economy'', edited by Heather Boushey, Ryan
+Nunn, and Jay Shambaugh, May 2019. 
+
+\bibitem[Shiller(2018)]{shiller2018}Robert J. Shiller (2018). \textit{Online
+Data for U.S. Stock Markets 1871-Present and CAPE Ratio.} http://www.econ.yale.edu/\textasciitilde{}shiller/data.htm
+\end{thebibliography}
+
+\end{document}

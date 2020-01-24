@@ -27,8 +27,8 @@
 ### <======================================================================>
 jubilee.macro_predict <- function(dtb, rs, new.tb3ms=NA, new.gs10=NA) {
 
-    if (class(rs$type1$lm) != "lm") stop("rs structure is wrong: type1$lm")
-    if (class(rs$type1$coef) != "numeric") stop("rs structure is wrong: type1$coef")
+    if (! is(rs$type1$lm, "lm")) stop("rs structure is wrong: type1$lm")
+    if (! is(rs$type1$coef, "numeric")) stop("rs structure is wrong: type1$coef")
     
     if (! all(is.na(new.tb3ms))) {
         if (NROW(dtb) != length(new.tb3ms)) stop("new.tb3ms doesn't have the required length")
